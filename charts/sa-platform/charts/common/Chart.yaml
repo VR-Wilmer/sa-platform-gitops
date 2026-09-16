@@ -1,0 +1,10 @@
+apiVersion: v2
+name: common
+description: >
+  Named templates reutilizables (Deployment, Service, ConfigMap, Secret,
+  ServiceAccount/Role/RoleBinding, HPA, PDB) compartidos por los subcharts de
+  sa-platform. No renderiza nada por si solo: es un library chart (type:
+  library), cada subchart de servicio lo declara como dependencia local y
+  llama a sus named templates con `include`.
+type: library
+version: 0.1.0

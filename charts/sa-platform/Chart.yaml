@@ -1,0 +1,56 @@
+apiVersion: v2
+name: sa-platform
+description: >
+  Practica 8 (Software Avanzado, USAC): el chart de Helm de la Practica 6
+  (4 microservicios + API Gateway + 2 cronjobs, PostgreSQL compartido,
+  Kafka asincrono, NetworkPolicies) evolucionado a GitOps con entrega
+  progresiva -- Namespace/ResourceQuota/LimitRange/RBAC se movieron a
+  Terraform (P8/terraform) y cada Deployment paso a ser un Rollout de Argo
+  Rollouts (canary de 3 pasos + AnalysisTemplate). Este chart ya no se
+  instala nunca a mano (`helm install`/`upgrade`): solo lo sincroniza
+  ArgoCD desde el repo `sa-platform-gitops`.
+type: application
+# version: version del CHART (empaquetado). appVersion: version de la
+# APLICACION que contiene. Se versionan por separado a proposito (requisito
+# A de P6): un cambio de solo-configuracion sube "version" sin tocar
+# "appVersion". P8 no cambia logica de negocio (appVersion se queda igual),
+# pero si cambia el formato de empaquetado (Deployment->Rollout, RBAC/Quota
+# fuera del chart), por eso "version" sube.
+version: 0.4.0
+appVersion: "1.1.0"
+dependencies:
+  # Library chart interno con los templates reutilizados por los 5 subcharts
+  # de servicio (ver charts/common). No renderiza nada por si solo, pero
+  # vive fisicamente dentro de charts/ como los demas, asi que Helm exige
+  # declararlo aqui tambien.
+  - name: common
+    version: "0.1.0"
+    repository: "file://charts/common"
+  - name: identidad
+    version: "1.0.0"
+    repository: "file://charts/identidad"
+  - name: tickets
+    version: "1.0.0"
+    repository: "file://charts/tickets"
+  - name: asignacion
+    version: "1.0.0"
+    repository: "file://charts/asignacion"
+  - name: notificaciones
+    version: "1.0.0"
+    repository: "file://charts/notificaciones"
+  - name: gateway
+    version: "1.0.0"
+    repository: "file://charts/gateway"
+  - name: cronjobs
+    version: "1.0.0"
+    repository: "file://charts/cronjobs"
+  # Dependencias externas (requisito A): base de datos y broker declarados en
+  # Chart.yaml y resueltos con `helm dependency update`, no instalados a mano.
+  - name: postgresql
+    version: "16.7.27"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
+  - name: kafka
+    version: "32.4.3"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: kafka.enabled

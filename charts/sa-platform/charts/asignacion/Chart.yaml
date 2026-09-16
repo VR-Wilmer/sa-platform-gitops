@@ -1,0 +1,9 @@
+apiVersion: v2
+name: asignacion
+description: Microservicio de Asignacion de Agentes (Python/FastAPI)
+version: 1.0.0
+appVersion: "1.0.0"
+dependencies:
+  - name: common
+    version: "0.1.0"
+    repository: "file://../common"

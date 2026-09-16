@@ -1,0 +1,9 @@
+apiVersion: v2
+name: notificaciones
+description: Microservicio de Notificaciones (GraphQL) - consumidor de los dos flujos Kafka
+version: 1.0.0
+appVersion: "1.0.0"
+dependencies:
+  - name: common
+    version: "0.1.0"
+    repository: "file://../common"

@@ -1,0 +1,73 @@
+# values-prod.yaml: ambiente "prod" (namespace sa-p8-prod, creado por
+# P8/terraform). El pipeline SI abre un PR automatico contra este archivo
+# (mismo mecanismo que values-staging.yaml), pero ese PR NO se auto-mergea
+# -- mergearlo a mano es el gate de promocion a produccion (ver
+# P8/MANUAL_TECNICO.md). Perfil de recursos igual al que P6 ya dimensiono
+# y verifico (values.yaml base / values-prod.yaml de P6).
+
+identidad:
+  image:
+    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-identidad-service
+    tag: "1.0.0"
+  hpa:
+    minReplicas: 2
+    maxReplicas: 5
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 400m, memory: 256Mi }
+
+tickets:
+  image:
+    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-tickets-service
+    tag: "1.0.0"
+  hpa:
+    minReplicas: 2
+    maxReplicas: 5
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 400m, memory: 256Mi }
+
+asignacion:
+  image:
+    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-asignacion-service
+    tag: "1.0.0"
+  hpa:
+    minReplicas: 2
+    maxReplicas: 5
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 400m, memory: 256Mi }
+
+notificaciones:
+  image:
+    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-notificaciones-service
+    tag: "1.0.0"
+  hpa:
+    minReplicas: 2
+    maxReplicas: 5
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 400m, memory: 256Mi }
+
+gateway:
+  image:
+    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-gateway
+    tag: "1.0.0"
+  hpa:
+    minReplicas: 2
+    maxReplicas: 5
+  resources:
+    requests: { cpu: 80m, memory: 96Mi }
+    limits: { cpu: 300m, memory: 192Mi }
+  ingress:
+    host: sa-p8-prod.local
+
+cronjobs:
+  heartbeat:
+    image:
+      repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-cronjob-heartbeat
+      tag: "1.0.0"
+  resumen:
+    image:
+      repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-cronjob-resumen
+      tag: "1.0.0"

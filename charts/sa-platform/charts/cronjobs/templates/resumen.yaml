@@ -1,0 +1,65 @@
+{{- $name := .Values.resumen.nameOverride }}
+{{- $labels := include "cronjobs.labels" (dict "root" $ "name" $name) }}
+{{- $selector := include "cronjobs.selectorLabels" (dict "root" $ "name" $name) }}
+{{- /*
+Practica 8: ServiceAccount/Role/RoleBinding se mueven a Terraform
+(P8/terraform, mismo nombre "$name") y el Secret lo materializa Sealed
+Secrets a partir del SealedSecret del repo GitOps -- este chart ya no crea
+ninguno de los dos, solo referencia sus nombres abajo (serviceAccountName,
+secretRef).
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- $labels | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.resumen.configMap.data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- $labels | nindent 4 }}
+spec:
+  schedule: {{ required "resumen.schedule es obligatorio" .Values.resumen.schedule | quote }}
+  concurrencyPolicy: {{ .Values.resumen.concurrencyPolicy | default "Forbid" }}
+  successfulJobsHistoryLimit: {{ .Values.resumen.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.resumen.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.resumen.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.resumen.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- $selector | nindent 12 }}
+        spec:
+          serviceAccountName: {{ $name }}
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: {{ $name }}
+              image: "{{ .Values.resumen.image.repository }}:{{ required "resumen.image.tag es obligatorio" .Values.resumen.image.tag }}"
+              imagePullPolicy: {{ .Values.resumen.image.pullPolicy | default "IfNotPresent" }}
+              envFrom:
+                - configMapRef:
+                    name: {{ $name }}
+                - secretRef:
+                    name: {{ $name }}
+              resources:
+                {{- toYaml .Values.resumen.resources | nindent 16 }}
+              securityContext:
+                runAsNonRoot: true
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]

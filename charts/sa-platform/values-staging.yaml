@@ -1,0 +1,78 @@
+# values-staging.yaml: ambiente "staging" (namespace sa-p8-staging,
+# creado por P8/terraform). Es el UNICO archivo (junto con
+# values-prod.yaml) que el job "gitops-pr" del pipeline
+# (.github/workflows/p8-gitops.yml) edita automaticamente -- cada build
+# exitoso abre un Pull Request contra este archivo cambiando
+# "<servicio>.image.tag" al nuevo tag publicado, y ese PR se auto-mergea
+# en staging. Nadie mas edita este archivo a mano.
+#
+# Perfil de recursos angosto (igual criterio que P6 values-dev.yaml):
+# menos CPU/memoria en reposo, HPA con techo mas bajo -- se itera rapido,
+# no es el ambiente que "importa" para la calificacion en vivo.
+
+identidad:
+  image:
+    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-identidad-service
+    tag: "1.0.0"
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+  resources:
+    requests: { cpu: 30m, memory: 64Mi }
+    limits: { cpu: 150m, memory: 128Mi }
+
+tickets:
+  image:
+    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-tickets-service
+    tag: "1.0.0"
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+  resources:
+    requests: { cpu: 30m, memory: 64Mi }
+    limits: { cpu: 150m, memory: 128Mi }
+
+asignacion:
+  image:
+    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-asignacion-service
+    tag: "1.0.0"
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+  resources:
+    requests: { cpu: 30m, memory: 64Mi }
+    limits: { cpu: 150m, memory: 128Mi }
+
+notificaciones:
+  image:
+    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-notificaciones-service
+    tag: "1.0.0"
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+  resources:
+    requests: { cpu: 30m, memory: 64Mi }
+    limits: { cpu: 150m, memory: 128Mi }
+
+gateway:
+  image:
+    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-gateway
+    tag: "1.0.0"
+  hpa:
+    minReplicas: 1
+    maxReplicas: 3
+  resources:
+    requests: { cpu: 30m, memory: 48Mi }
+    limits: { cpu: 100m, memory: 96Mi }
+  ingress:
+    host: sa-p8-staging.local
+
+cronjobs:
+  heartbeat:
+    image:
+      repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-cronjob-heartbeat
+      tag: "1.0.0"
+  resumen:
+    image:
+      repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-cronjob-resumen
+      tag: "1.0.0"

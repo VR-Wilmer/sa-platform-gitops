@@ -1,0 +1,9 @@
+apiVersion: v2
+name: gateway
+description: API Gateway (reverse proxy) - unica puerta de entrada al cluster via Ingress
+version: 1.0.0
+appVersion: "1.0.0"
+dependencies:
+  - name: common
+    version: "0.1.0"
+    repository: "file://../common"

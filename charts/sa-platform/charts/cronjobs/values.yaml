@@ -1,0 +1,63 @@
+# Cronjob 1 (requisito H): cada 2 minutos inserta un registro de ejecucion
+# (fecha/hora + carne) en "platform_db".
+heartbeat:
+  nameOverride: "cronjob-heartbeat"
+  image:
+    repository: p6/cronjob-heartbeat
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  backoffLimit: 2
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  activeDeadlineSeconds: 60
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  configMap:
+    data:
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      PLATFORM_DB_NAME: "platform_db"
+      CARNE: "201800678"
+  # El Secret "cronjob-heartbeat" (DB_USER, DB_PASSWORD) ya no se declara
+  # aqui (Practica 8): lo materializa Sealed Secrets, ver
+  # P8/sealed-secrets/seal-secrets.sh.
+
+# Cronjob 2 (requisito H): cada 10 minutos lee lo que dejo el Cronjob 1,
+# calcula el resumen por hora y lo publica en Kafka.
+resumen:
+  nameOverride: "cronjob-resumen"
+  image:
+    repository: p6/cronjob-resumen
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  backoffLimit: 2
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  activeDeadlineSeconds: 60
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  configMap:
+    data:
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      PLATFORM_DB_NAME: "platform_db"
+      CARNE: "201800678"
+      KAFKA_BROKERS: "kafka:9092"
+      KAFKA_CRONJOB_RESUMEN_TOPIC: "cronjob-resumen"
+  # El Secret "cronjob-resumen" (DB_USER, DB_PASSWORD) ya no se declara
+  # aqui (Practica 8): lo materializa Sealed Secrets, ver
+  # P8/sealed-secrets/seal-secrets.sh.

@@ -1,0 +1,35 @@
+# Application de ArgoCD para el ambiente "prod". Misma mecanica que
+# application-staging.yaml -- la diferencia real de la promocion a
+# produccion no esta aqui, sino en que el PR automatico contra
+# values-prod.yaml (job "gitops-pr" del pipeline) exige un merge manual
+# del estudiante en sa-platform-gitops antes de que ArgoCD vea el cambio.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sa-platform-prod
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/VR-Wilmer/sa-platform-gitops.git
+      targetRevision: main
+      path: charts/sa-platform
+      helm:
+        valueFiles:
+          - values.yaml
+          - values-prod.yaml
+    - repoURL: https://github.com/VR-Wilmer/sa-platform-gitops.git
+      targetRevision: main
+      path: sealed-secrets/prod
+      directory:
+        recurse: false
+        exclude: "README.md"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sa-p8-prod
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=false

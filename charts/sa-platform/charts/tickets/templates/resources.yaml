@@ -1,0 +1,15 @@
+{{ include "common.configmap" . }}
+---
+{{ include "common.service" . }}
+---
+{{ include "common.rolloutServices" . }}
+---
+{{ include "common.rollout" . }}
+---
+{{ include "common.analysistemplate" . }}
+---
+{{ include "common.hpa" . }}
+---
+{{ include "common.pdb" . }}
+---
+{{ include "common.ingress" . }}

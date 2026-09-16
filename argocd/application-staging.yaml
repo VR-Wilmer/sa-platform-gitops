@@ -1,0 +1,43 @@
+# Application de ArgoCD para el ambiente "staging". Se aplica UNA sola vez
+# como bootstrap del cluster (kubectl apply -f, ver P8/MANUAL_TECNICO.md) --
+# a partir de ahi, ArgoCD es el UNICO componente que aplica cambios al
+# cluster: el pipeline solo abre un PR contra values-staging.yaml, nunca
+# toca el cluster directamente.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sa-platform-staging
+  namespace: argocd
+spec:
+  project: default
+  # Multi-source (ArgoCD >= 2.6): un Application sincroniza tanto el chart
+  # de Helm como los SealedSecret en texto plano-cifrado de
+  # sealed-secrets/staging/ -- ambos deben existir para que el Rollout
+  # arranque (envFrom.secretRef), y ambos los aplica solo ArgoCD.
+  sources:
+    - repoURL: https://github.com/VR-Wilmer/sa-platform-gitops.git
+      targetRevision: main
+      path: charts/sa-platform
+      helm:
+        valueFiles:
+          - values.yaml
+          - values-staging.yaml
+    - repoURL: https://github.com/VR-Wilmer/sa-platform-gitops.git
+      targetRevision: main
+      path: sealed-secrets/staging
+      directory:
+        recurse: false
+        exclude: "README.md"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sa-p8-staging
+  syncPolicy:
+    automated:
+      # selfHeal: responde directamente a la 3ra debilidad del enunciado
+      # ("el estado real del cluster puede diferir del declarado y nadie
+      # lo detecta") -- un cambio manual (kubectl edit/patch) se revierte
+      # solo en el proximo ciclo de reconciliacion.
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=false # el namespace ya lo crea Terraform

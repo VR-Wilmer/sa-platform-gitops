@@ -1,0 +1,6 @@
+# Charts de terceros descargados por `helm dependency update`/ArgoCD (no
+# son nuestro codigo, se re-descargan siempre igual desde Chart.yaml +
+# Chart.lock).
+charts/sa-platform/charts/postgresql/
+charts/sa-platform/charts/kafka/
+charts/sa-platform/charts/*.tgz

@@ -1,0 +1,68 @@
+{{- $name := .Values.heartbeat.nameOverride }}
+{{- $labels := include "cronjobs.labels" (dict "root" $ "name" $name) }}
+{{- $selector := include "cronjobs.selectorLabels" (dict "root" $ "name" $name) }}
+{{- /*
+Practica 8: ServiceAccount/Role/RoleBinding se mueven a Terraform
+(P8/terraform, mismo nombre "$name") y el Secret lo materializa Sealed
+Secrets a partir del SealedSecret del repo GitOps -- este chart ya no crea
+ninguno de los dos, solo referencia sus nombres abajo (serviceAccountName,
+secretRef).
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- $labels | nindent 4 }}
+data:
+  {{- range $key, $value := .Values.heartbeat.configMap.data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- $labels | nindent 4 }}
+spec:
+  schedule: {{ required "heartbeat.schedule es obligatorio" .Values.heartbeat.schedule | quote }}
+  # Forbid: si una ejecucion todavia esta corriendo (o atascada), la
+  # siguiente NO arranca en paralelo -- evita filas duplicadas por
+  # solapamiento (requisito H).
+  concurrencyPolicy: {{ .Values.heartbeat.concurrencyPolicy | default "Forbid" }}
+  successfulJobsHistoryLimit: {{ .Values.heartbeat.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.heartbeat.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.heartbeat.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.heartbeat.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- $selector | nindent 12 }}
+        spec:
+          serviceAccountName: {{ $name }}
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: {{ $name }}
+              image: "{{ .Values.heartbeat.image.repository }}:{{ required "heartbeat.image.tag es obligatorio" .Values.heartbeat.image.tag }}"
+              imagePullPolicy: {{ .Values.heartbeat.image.pullPolicy | default "IfNotPresent" }}
+              envFrom:
+                - configMapRef:
+                    name: {{ $name }}
+                - secretRef:
+                    name: {{ $name }}
+              resources:
+                {{- toYaml .Values.heartbeat.resources | nindent 16 }}
+              securityContext:
+                runAsNonRoot: true
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]

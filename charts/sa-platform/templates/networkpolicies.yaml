@@ -1,0 +1,179 @@
+# NetworkPolicies (requisito E): Kubernetes permite todo el trafico por
+# defecto (no hay "deny" implicito) -- cada Policy de aqui restringe el
+# INGRESO a un componente especifico a solo quien realmente lo necesita.
+# Nadie mas que el Ingress Controller puede alcanzar al gateway; nadie mas
+# que los microservicios/cronjobs autorizados puede alcanzar a Postgres o
+# Kafka; los microservicios internos no se alcanzan entre si salvo las
+# llamadas que el diseno realmente usa (ver docs/diagramas/01-arquitectura.md).
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres-from-authorized
+  labels:
+    {{- include "sa-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - identidad-service
+                  - tickets-service
+                  - asignacion-service
+                  - notificaciones-service
+                  - cronjob-heartbeat
+                  - cronjob-resumen
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kafka-from-authorized
+  labels:
+    {{- include "sa-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - tickets-service
+                  - notificaciones-service
+                  - cronjob-resumen
+                  # Job de post-install/post-upgrade que crea los topicos
+                  # (ver templates/kafka-topics-job.yaml).
+                  - kafka-topics-init
+      ports:
+        - protocol: TCP
+          port: 9092
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-from-ingress-controller
+  labels:
+    {{- include "sa-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: gateway
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        # ingress-nginx corre en su propio namespace; Kubernetes etiqueta
+        # todo namespace automaticamente con kubernetes.io/metadata.name
+        # desde 1.21+, no requiere que nosotros lo etiquetemos a mano.
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 4000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-identidad-from-authorized
+  labels:
+    {{- include "sa-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: identidad-service
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  # gateway: proxy /api/identidad. tickets/notificaciones:
+                  # consultan POST /authorize para verificar el JWT.
+                  - gateway
+                  - tickets-service
+                  - notificaciones-service
+      ports:
+        - protocol: TCP
+          port: 4100
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-tickets-from-gateway
+  labels:
+    {{- include "sa-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tickets-service
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+      ports:
+        - protocol: TCP
+          port: 4200
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-asignacion-from-authorized
+  labels:
+    {{- include "sa-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: asignacion-service
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  # gateway: proxy /api/asignacion. tickets: asignacion
+                  # sincrona de agente al crear un ticket.
+                  - gateway
+                  - tickets-service
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-notificaciones-from-gateway
+  labels:
+    {{- include "sa-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: notificaciones-service
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gateway
+      ports:
+        - protocol: TCP
+          port: 4400

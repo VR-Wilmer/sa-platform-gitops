@@ -1,0 +1,5 @@
+apiVersion: v2
+name: cronjobs
+description: Cronjob 1 (heartbeat) y Cronjob 2 (resumen), encadenados via Postgres + Kafka
+version: 1.0.0
+appVersion: "1.0.0"

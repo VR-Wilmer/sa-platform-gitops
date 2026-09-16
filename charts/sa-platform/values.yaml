@@ -1,0 +1,231 @@
+# values.yaml: base COMUN a todos los ambientes. Este archivo (y los
+# values-*.yaml que lo sobreescriben en sa-platform-gitops) es lo unico que
+# ArgoCD sincroniza -- por eso, a partir de la Practica 8, NINGUN valor
+# sensible vive aqui ni en ningun values-*.yaml: en vez de una clave
+# *password*/*secret* vacia que se completaba con `-f secrets.local.yaml`
+# (mecanismo de P6/P7, retirado), Postgres usa `auth.existingSecret`
+# apuntando al Secret que materializa Sealed Secrets (ver
+# P8/sealed-secrets/seal-secrets.sh) a partir del SealedSecret versionado
+# en sa-platform-gitops/sealed-secrets/.
+
+# resourceQuota / limitRange: a partir de la Practica 8 se administran con
+# Terraform (P8/terraform/environments.tf), no con este chart -- ver
+# charts/sa-platform/templates/{limitrange,resourcequota}.yaml (eliminados).
+
+# ---------------------------------------------------------------------------
+# Dependencia externa: PostgreSQL compartido (requisito C), StatefulSet+PVC.
+# Bitnami retiro sus tags versionadas del Docker Hub gratuito en 2025 y las
+# reubico en el registro "bitnamilegacy" (verificado con `docker pull` antes
+# de usarlo, ver docs/comandos-reproducibles.md) -- por eso image.repository
+# no es "bitnami/postgresql".
+# ---------------------------------------------------------------------------
+postgresql:
+  enabled: true
+  fullnameOverride: "postgres"
+  nameOverride: "postgres"
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
+    tag: "16"
+  architecture: standalone
+  auth:
+    # El usuario "postgres" (superuser) solo se usa para ejecutar los
+    # scripts de initdb (primary.initdb.user) -- crear 4 bases de datos
+    # adicionales requiere privilegios que el usuario de aplicacion no
+    # necesita en el dia a dia.
+    enablePostgresUser: true
+    username: "sa_app"
+    database: "platform_db"
+    # Practica 8: sin password en texto plano -- el chart de Bitnami lee
+    # ambas contrasenas (superuser "postgres" y usuario de aplicacion
+    # "sa_app") del Secret sellado "postgres-auth" (ver
+    # P8/sealed-secrets/seal-secrets.sh), nunca de este archivo.
+    existingSecret: "postgres-auth"
+    secretKeys:
+      adminPasswordKey: "postgres-password"
+      userPasswordKey: "password"
+  primary:
+    networkPolicy:
+      # El chart de Bitnami genera por defecto una NetworkPolicy PROPIA sin
+      # restriccion "from:" (abierta a cualquier pod del cluster en el
+      # puerto 5432), lo que anularia el aislamiento real que definen
+      # templates/networkpolicies.yaml (las NetworkPolicy son aditivas: si
+      # CUALQUIER policy permite el trafico, se permite). Se desactiva la
+      # de Bitnami y se usa unicamente la nuestra.
+      enabled: false
+    persistence:
+      size: 1Gi
+    resourcesPreset: "none"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    initdb:
+      user: postgres
+      # Sin "password" explicito (Practica 8): el job de initdb corre
+      # dentro del mismo contenedor primary, que ya tiene POSTGRES_PASSWORD
+      # inyectado desde "auth.existingSecret" arriba -- no hace falta
+      # repetirlo en texto plano aqui.
+      # Crea las 4 bases de datos restantes (platform_db ya existe, la crea
+      # el entrypoint via auth.database) y las tablas de cada una -- mismo
+      # DDL que P4 tenia repartido en 4 contenedores Postgres separados,
+      # consolidado aqui porque P5 usa un unico Postgres compartido.
+      scripts:
+        01-init.sql: |
+          CREATE DATABASE identidad_db;
+          CREATE DATABASE tickets_db;
+          CREATE DATABASE asignacion_db;
+          CREATE DATABASE notificaciones_db;
+
+          -- platform_db: no pertenece a ningun microservicio. La usan los
+          -- cronjobs (Cronjob 1 escribe, Cronjob 2 lee) y el segundo
+          -- consumidor Kafka de notificaciones-service (escribe el resumen).
+          CREATE TABLE IF NOT EXISTS cronjob_ejecuciones (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              ejecutado_en TIMESTAMPTZ NOT NULL,
+              carne TEXT NOT NULL
+          );
+          ALTER TABLE cronjob_ejecuciones OWNER TO sa_app;
+
+          CREATE TABLE IF NOT EXISTS cronjob_resumenes (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              generado_en TIMESTAMPTZ NOT NULL,
+              carne TEXT NOT NULL,
+              resumen JSONB NOT NULL
+          );
+          ALTER TABLE cronjob_resumenes OWNER TO sa_app;
+
+          -- Nota sobre los ALTER TABLE ... OWNER TO: las tablas se crean con
+          -- este script ejecutado como "postgres" (primary.initdb.user, el
+          -- unico rol con privilegio para CREATE DATABASE); sin el OWNER TO
+          -- explicito, el usuario de aplicacion "sa_app" no tendria ningun
+          -- privilegio sobre ellas (permission denied) al conectarse.
+          \connect identidad_db
+          CREATE TABLE IF NOT EXISTS usuarios (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              nombre TEXT NOT NULL,
+              correo TEXT NOT NULL UNIQUE,
+              contrasena_hash TEXT NOT NULL,
+              rol VARCHAR(20) NOT NULL DEFAULT 'CLIENTE'
+                  CHECK (rol IN ('ADMIN', 'AGENTE', 'CLIENTE'))
+          );
+          ALTER TABLE usuarios OWNER TO sa_app;
+
+          \connect tickets_db
+          CREATE TABLE IF NOT EXISTS tickets (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              titulo TEXT NOT NULL,
+              descripcion TEXT NOT NULL,
+              categoria VARCHAR(20) NOT NULL CHECK (categoria IN ('SOFTWARE', 'HARDWARE', 'RED', 'CUENTA')),
+              estado VARCHAR(20) NOT NULL DEFAULT 'ABIERTO'
+                  CHECK (estado IN ('ABIERTO', 'ASIGNADO', 'EN_PROGRESO', 'RESUELTO', 'CERRADO')),
+              cliente_id UUID NOT NULL,
+              cliente_correo TEXT NOT NULL,
+              agente_id UUID,
+              agente_nombre TEXT,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+              updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+          );
+          CREATE INDEX IF NOT EXISTS idx_tickets_cliente_id ON tickets (cliente_id);
+          ALTER TABLE tickets OWNER TO sa_app;
+
+          \connect asignacion_db
+          CREATE TABLE IF NOT EXISTS agentes (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              nombre TEXT NOT NULL,
+              categoria VARCHAR(20) NOT NULL CHECK (categoria IN ('SOFTWARE', 'HARDWARE', 'RED', 'CUENTA')),
+              carga_actual INTEGER NOT NULL DEFAULT 0,
+              activo BOOLEAN NOT NULL DEFAULT TRUE
+          );
+          ALTER TABLE agentes OWNER TO sa_app;
+
+          \connect notificaciones_db
+          CREATE TABLE IF NOT EXISTS notificaciones (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              ticket_id UUID NOT NULL,
+              destinatario TEXT NOT NULL,
+              tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('TICKET_CREADO', 'TICKET_ASIGNADO', 'TICKET_RESUELTO')),
+              estado_envio VARCHAR(10) NOT NULL CHECK (estado_envio IN ('ENVIADA', 'FALLIDA')),
+              fecha_envio TIMESTAMPTZ NOT NULL DEFAULT now()
+          );
+          ALTER TABLE notificaciones OWNER TO sa_app;
+          CREATE INDEX IF NOT EXISTS idx_notificaciones_ticket_id ON notificaciones (ticket_id);
+  volumePermissions:
+    enabled: false
+  shmVolume:
+    enabled: true
+
+# ---------------------------------------------------------------------------
+# Dependencia externa: Kafka (requisito D), modo KRaft (sin Zookeeper), un
+# solo nodo combinado controller+broker (suficiente para un cluster local).
+# Listeners en PLAINTEXT a proposito: el aislamiento de acceso lo dan las
+# NetworkPolicies (templates/networkpolicies.yaml), no SASL -- alcance
+# razonable para un cluster local de practica, documentado en el README.
+# ---------------------------------------------------------------------------
+kafka:
+  enabled: true
+  fullnameOverride: "kafka"
+  nameOverride: "kafka"
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/kafka
+    tag: "4.0.0-debian-12-r10"
+  listeners:
+    client:
+      protocol: PLAINTEXT
+    controller:
+      protocol: PLAINTEXT
+    interbroker:
+      protocol: PLAINTEXT
+  controller:
+    replicaCount: 1
+    persistence:
+      size: 2Gi
+    resourcesPreset: "none"
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 750m
+        memory: 1Gi
+    # Los topicos se crean explicitamente con el Job
+    # templates/kafka-topics-job.yaml (particiones/retencion declaradas a
+    # proposito), no por auto-creacion implicita al primer publish.
+    #
+    # OJO: "controller.config" REEMPLAZA por completo la configuracion
+    # auto-generada del chart (incluido process.roles, node.id, listeners,
+    # etc), no la mezcla -- eso provoco un crash real ("Missing required
+    # configuration process.roles") durante el despliegue. El campo correcto
+    # para agregar una propiedad sin perder el resto es
+    # "overrideConfiguration".
+    overrideConfiguration:
+      auto.create.topics.enable: "false"
+      # Con un solo broker, los topicos internos que Kafka auto-crea
+      # (__consumer_offsets, __transaction_state) no pueden satisfacer su
+      # replication.factor por defecto (3) -- eso impedia encontrar el group
+      # coordinator ("Failed to find group coordinator") y tumbaba a
+      # cualquier consumidor. Se baja a 1, acorde al broker unico local.
+      offsets.topic.replication.factor: "1"
+      transaction.state.log.replication.factor: "1"
+      transaction.state.log.min.isr: "1"
+  # Mismo motivo que postgresql.primary.networkPolicy.enabled arriba: el
+  # chart genera una NetworkPolicy propia sin restriccion "from:" en los
+  # puertos 9092/9093/9094, abierta a todo el cluster.
+  networkPolicy:
+    enabled: false
+
+# Topicos que el Job de post-install debe crear (requisito D: "la cola o
+# topico debera ser durable").
+kafkaTopics:
+  - name: ticket-notificaciones
+    partitions: 3
+    replicationFactor: 1
+    retentionMs: "604800000" # 7 dias
+  - name: cronjob-resumen
+    partitions: 3
+    replicationFactor: 1
+    retentionMs: "604800000"

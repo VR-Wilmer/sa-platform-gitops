@@ -1,0 +1,66 @@
+nameOverride: "asignacion-service"
+
+image:
+  repository: p6/asignacion-service
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8000
+
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    cpu: 300m
+    memory: 192Mi
+
+probes:
+  liveness:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    path: /ready
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  startup:
+    path: /ready
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 30
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+# ServiceAccount/Role/RoleBinding: Practica 8 los mueve a Terraform
+# (P8/terraform), con el mismo nombre que "common.fullname" -- este chart
+# ya no los crea, ver charts/common/templates/_rbac.tpl (eliminado).
+
+ingress:
+  enabled: false
+
+configMap:
+  data:
+    PORT: "8000"
+    DB_HOST: "postgres"
+    DB_PORT: "5432"
+    DB_NAME: "asignacion_db"
+
+# El Secret "asignacion-service" (DB_USER, DB_PASSWORD, INTERNAL_SERVICE_SECRET)
+# ya no se declara aqui (Practica 8): lo materializa Sealed Secrets, ver
+# P8/sealed-secrets/seal-secrets.sh.
