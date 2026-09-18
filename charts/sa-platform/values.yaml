@@ -27,6 +27,7 @@ postgresql:
     registry: docker.io
     repository: bitnamilegacy/postgresql
     tag: "16"
+    debug: true # TEMPORAL: diagnosticando crash de postgres-0, revertir despues
   architecture: standalone
   auth:
     # El usuario "postgres" (superuser) solo se usa para ejecutar los
