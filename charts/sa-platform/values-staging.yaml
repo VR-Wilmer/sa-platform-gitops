@@ -13,66 +13,61 @@
 identidad:
   image:
     repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-identidad-service
-    tag: "1.0.0"
+    tag: "ci-4c897f3be708"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 64Mi}
+    limits: {cpu: 150m, memory: 128Mi}
 tickets:
   image:
     repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-tickets-service
-    tag: "1.0.0"
+    tag: "ci-4c897f3be708"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 64Mi}
+    limits: {cpu: 150m, memory: 128Mi}
 asignacion:
   image:
     repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-asignacion-service
-    tag: "1.0.0"
+    tag: "ci-4c897f3be708"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 64Mi}
+    limits: {cpu: 150m, memory: 128Mi}
 notificaciones:
   image:
     repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-notificaciones-service
-    tag: "1.0.0"
+    tag: "ci-4c897f3be708"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 64Mi}
+    limits: {cpu: 150m, memory: 128Mi}
 gateway:
   image:
     repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-gateway
-    tag: "1.0.0"
+    tag: "ci-4c897f3be708"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 48Mi }
-    limits: { cpu: 100m, memory: 96Mi }
+    requests: {cpu: 30m, memory: 48Mi}
+    limits: {cpu: 100m, memory: 96Mi}
   ingress:
     host: sa-p8-staging.local
-
 cronjobs:
   heartbeat:
     image:
       repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-cronjob-heartbeat
-      tag: "1.0.0"
+      tag: "ci-4c897f3be708"
   resumen:
     image:
       repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-cronjob-resumen
-      tag: "1.0.0"
+      tag: "ci-4c897f3be708"
