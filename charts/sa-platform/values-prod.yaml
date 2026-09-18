@@ -7,7 +7,7 @@
 
 identidad:
   image:
-    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-identidad-service
+    repository: docker.io/wvasquezusac/sa-platform-identidad-service
     tag: "1.0.0"
   hpa:
     minReplicas: 2
@@ -18,7 +18,7 @@ identidad:
 
 tickets:
   image:
-    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-tickets-service
+    repository: docker.io/wvasquezusac/sa-platform-tickets-service
     tag: "1.0.0"
   hpa:
     minReplicas: 2
@@ -29,7 +29,7 @@ tickets:
 
 asignacion:
   image:
-    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-asignacion-service
+    repository: docker.io/wvasquezusac/sa-platform-asignacion-service
     tag: "1.0.0"
   hpa:
     minReplicas: 2
@@ -40,7 +40,7 @@ asignacion:
 
 notificaciones:
   image:
-    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-notificaciones-service
+    repository: docker.io/wvasquezusac/sa-platform-notificaciones-service
     tag: "1.0.0"
   hpa:
     minReplicas: 2
@@ -51,7 +51,7 @@ notificaciones:
 
 gateway:
   image:
-    repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-gateway
+    repository: docker.io/wvasquezusac/sa-platform-gateway
     tag: "1.0.0"
   hpa:
     minReplicas: 2
@@ -65,9 +65,9 @@ gateway:
 cronjobs:
   heartbeat:
     image:
-      repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-cronjob-heartbeat
+      repository: docker.io/wvasquezusac/sa-platform-cronjob-heartbeat
       tag: "1.0.0"
   resumen:
     image:
-      repository: docker.io/__DOCKERHUB_USERNAME__/sa-platform-cronjob-resumen
+      repository: docker.io/wvasquezusac/sa-platform-cronjob-resumen
       tag: "1.0.0"
