@@ -47,6 +47,17 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
+          # Practica 8: sin esto, Kyverno (require-resources) rechaza el
+          # Job siempre -- nunca se creaban los topicos por esta razon,
+          # ni con helm install a mano en P6/P7 (Kyverno no existia
+          # entonces) ni menos aun ahora que si se exige.
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
           command:
             - /bin/bash
             - -c
