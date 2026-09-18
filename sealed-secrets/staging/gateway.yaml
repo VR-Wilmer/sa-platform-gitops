@@ -1,0 +1,12 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: gateway
+  namespace: sa-p8-staging
+spec:
+  encryptedData: {}
+  template:
+    metadata:
+      name: gateway
+      namespace: sa-p8-staging
