@@ -8,7 +8,7 @@
 identidad:
   image:
     repository: docker.io/wvasquezusac/sa-platform-identidad-service
-    tag: "1.0.0"
+    tag: "ci-ae177b5889ae"
   hpa:
     minReplicas: 2
     maxReplicas: 5
@@ -19,7 +19,7 @@ identidad:
 tickets:
   image:
     repository: docker.io/wvasquezusac/sa-platform-tickets-service
-    tag: "1.0.0"
+    tag: "ci-ae177b5889ae"
   hpa:
     minReplicas: 2
     maxReplicas: 5
@@ -30,7 +30,7 @@ tickets:
 asignacion:
   image:
     repository: docker.io/wvasquezusac/sa-platform-asignacion-service
-    tag: "1.0.0"
+    tag: "ci-ae177b5889ae"
   hpa:
     minReplicas: 2
     maxReplicas: 5
@@ -41,7 +41,7 @@ asignacion:
 notificaciones:
   image:
     repository: docker.io/wvasquezusac/sa-platform-notificaciones-service
-    tag: "1.0.0"
+    tag: "ci-ae177b5889ae"
   hpa:
     minReplicas: 2
     maxReplicas: 5
@@ -52,7 +52,7 @@ notificaciones:
 gateway:
   image:
     repository: docker.io/wvasquezusac/sa-platform-gateway
-    tag: "1.0.0"
+    tag: "ci-ae177b5889ae"
   hpa:
     minReplicas: 2
     maxReplicas: 5
@@ -66,8 +66,8 @@ cronjobs:
   heartbeat:
     image:
       repository: docker.io/wvasquezusac/sa-platform-cronjob-heartbeat
-      tag: "1.0.0"
+      tag: "ci-ae177b5889ae"
   resumen:
     image:
       repository: docker.io/wvasquezusac/sa-platform-cronjob-resumen
-      tag: "1.0.0"
+      tag: "ci-ae177b5889ae"
