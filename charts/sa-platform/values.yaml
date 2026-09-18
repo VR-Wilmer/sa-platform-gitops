@@ -27,7 +27,6 @@ postgresql:
     registry: docker.io
     repository: bitnamilegacy/postgresql
     tag: "16"
-    debug: true # TEMPORAL: diagnosticando crash de postgres-0, revertir despues
   architecture: standalone
   auth:
     # El usuario "postgres" (superuser) solo se usa para ejecutar los
@@ -46,6 +45,20 @@ postgresql:
       adminPasswordKey: "postgres-password"
       userPasswordKey: "password"
   primary:
+    # POSTGRES_INITSCRIPTS_PASSWORD (Practica 8): el script de
+    # primary.initdb.scripts (mas abajo) se conecta como "postgres" via
+    # psql para crear las 4 bases de datos -- pg_hba.conf exige auth
+    # "md5", asi que esa conexion necesita contrasena. En vez de
+    # "primary.initdb.password" (valor plano en este archivo, lo que
+    # justamente se quiere evitar), se inyecta como variable de entorno
+    # tomada del mismo Secret sellado "postgres-auth" via secretKeyRef --
+    # nunca queda en texto plano en ningun repositorio.
+    extraEnvVars:
+      - name: POSTGRES_INITSCRIPTS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: postgres-auth
+            key: postgres-password
     networkPolicy:
       # El chart de Bitnami genera por defecto una NetworkPolicy PROPIA sin
       # restriccion "from:" (abierta a cualquier pod del cluster en el
@@ -66,10 +79,10 @@ postgresql:
         memory: 512Mi
     initdb:
       user: postgres
-      # Sin "password" explicito (Practica 8): el job de initdb corre
-      # dentro del mismo contenedor primary, que ya tiene POSTGRES_PASSWORD
-      # inyectado desde "auth.existingSecret" arriba -- no hace falta
-      # repetirlo en texto plano aqui.
+      # Sin "password" explicito aqui (ese campo solo acepta texto plano):
+      # la contrasena real para este mismo usuario la inyecta
+      # POSTGRES_INITSCRIPTS_PASSWORD arriba, via extraEnvVars +
+      # secretKeyRef sobre "postgres-auth".
       # Crea las 4 bases de datos restantes (platform_db ya existe, la crea
       # el entrypoint via auth.database) y las tablas de cada una -- mismo
       # DDL que P4 tenia repartido en 4 contenedores Postgres separados,
