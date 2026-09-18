@@ -45,16 +45,30 @@ postgresql:
       adminPasswordKey: "postgres-password"
       userPasswordKey: "password"
   primary:
-    # POSTGRES_INITSCRIPTS_PASSWORD (Practica 8): el script de
-    # primary.initdb.scripts (mas abajo) se conecta como "postgres" via
-    # psql para crear las 4 bases de datos -- pg_hba.conf exige auth
-    # "md5", asi que esa conexion necesita contrasena. En vez de
-    # "primary.initdb.password" (valor plano en este archivo, lo que
-    # justamente se quiere evitar), se inyecta como variable de entorno
-    # tomada del mismo Secret sellado "postgres-auth" via secretKeyRef --
-    # nunca queda en texto plano en ningun repositorio.
+    # extraEnvVars (Practica 8): la imagen "bitnamilegacy/postgresql:16"
+    # (congelada desde 2025, ver nota de arriba) NO resuelve
+    # automaticamente los "*_FILE" que genera el chart actual desde
+    # "auth.existingSecret" (POSTGRES_POSTGRES_PASSWORD_FILE,
+    # POSTGRES_PASSWORD_FILE, sin "QL") -- el entrypoint de esa imagen
+    # solo mira "POSTGRESQL_*_FILE" (con "QL"). Sin esto, la contrasena
+    # del superusuario "postgres" nunca queda fijada (initdb la deja sin
+    # password funcional) y el script de primary.initdb.scripts (mas
+    # abajo, que se conecta como "postgres" via psql) falla con
+    # "password authentication failed". Se fuerzan aqui, con los nombres
+    # correctos, via secretKeyRef sobre el mismo Secret sellado
+    # "postgres-auth" -- nunca en texto plano en ningun repositorio.
     extraEnvVars:
-      - name: POSTGRES_INITSCRIPTS_PASSWORD
+      - name: POSTGRESQL_POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: postgres-auth
+            key: postgres-password
+      - name: POSTGRESQL_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: postgres-auth
+            key: password
+      - name: POSTGRESQL_INITSCRIPTS_PASSWORD
         valueFrom:
           secretKeyRef:
             name: postgres-auth
