@@ -13,66 +13,61 @@
 identidad:
   image:
     repository: docker.io/wvasquezusac/sa-platform-identidad-service
-    tag: "ci-ae177b5889ae"
+    tag: "ci-6794519ce662"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 64Mi}
+    limits: {cpu: 150m, memory: 128Mi}
 tickets:
   image:
     repository: docker.io/wvasquezusac/sa-platform-tickets-service
-    tag: "ci-ae177b5889ae"
+    tag: "ci-6794519ce662"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 64Mi}
+    limits: {cpu: 150m, memory: 128Mi}
 asignacion:
   image:
     repository: docker.io/wvasquezusac/sa-platform-asignacion-service
-    tag: "ci-ae177b5889ae"
+    tag: "ci-6794519ce662"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 64Mi}
+    limits: {cpu: 150m, memory: 128Mi}
 notificaciones:
   image:
     repository: docker.io/wvasquezusac/sa-platform-notificaciones-service
-    tag: "ci-ae177b5889ae"
+    tag: "ci-6794519ce662"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 64Mi}
+    limits: {cpu: 150m, memory: 128Mi}
 gateway:
   image:
     repository: docker.io/wvasquezusac/sa-platform-gateway
-    tag: "ci-ae177b5889ae"
+    tag: "ci-6794519ce662"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 48Mi }
-    limits: { cpu: 100m, memory: 96Mi }
+    requests: {cpu: 30m, memory: 48Mi}
+    limits: {cpu: 100m, memory: 96Mi}
   ingress:
     host: sa-p8-staging.local
-
 cronjobs:
   heartbeat:
     image:
       repository: docker.io/wvasquezusac/sa-platform-cronjob-heartbeat
-      tag: "ci-ae177b5889ae"
+      tag: "ci-6794519ce662"
   resumen:
     image:
       repository: docker.io/wvasquezusac/sa-platform-cronjob-resumen
-      tag: "ci-ae177b5889ae"
+      tag: "ci-6794519ce662"
