@@ -25,8 +25,11 @@ tickets:
   image:
     repository: docker.io/wvasquezusac/sa-platform-tickets-service
     tag: "ci-ae177b5889ae"
+  # Practica 9: 2, no 1 -- es uno de los dos servicios con PDB +
+  # anti-afinidad para la prueba de perdida de nodo (requiere al menos 2
+  # replicas para que la caida de un nodo no sea la caida del servicio).
   hpa:
-    minReplicas: 1
+    minReplicas: 2
     maxReplicas: 3
   resources:
     requests: { cpu: 30m, memory: 64Mi }
@@ -58,8 +61,11 @@ gateway:
   image:
     repository: docker.io/wvasquezusac/sa-platform-gateway
     tag: "ci-ae177b5889ae"
+  # Practica 9: 2, no 1 -- mismo motivo que tickets.hpa arriba, y ademas
+  # es el punto de entrada usado para verificar con curl que el servicio
+  # sigue respondiendo durante el drenaje.
   hpa:
-    minReplicas: 1
+    minReplicas: 2
     maxReplicas: 3
   resources:
     requests: { cpu: 30m, memory: 48Mi }

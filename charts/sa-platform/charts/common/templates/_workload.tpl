@@ -53,6 +53,24 @@ spec:
         checksum/config: {{ include "common.configmap" . | sha256sum }}
     spec:
       serviceAccountName: {{ include "common.serviceAccountName" . }}
+      {{- if and .Values.antiAffinity .Values.antiAffinity.enabled }}
+      # Practica 9 (resiliencia ante perdida de nodo): "preferred", no
+      # "required" -- con maxReplicas 5 y solo 2 nodos worker (ci/kind-config.yaml),
+      # una anti-afinidad "required" dejaria el 3er+ pod en Pending
+      # permanente apenas el HPA escale bajo carga. "preferred" con peso
+      # maximo logra el mismo resultado practico mientras hay hueco (el
+      # scheduler siempre prefiere el nodo libre cuando no hay conflicto
+      # real), sin bloquear el autoescalado.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "common.selectorLabels" . | nindent 20 }}
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         # Kubernetes no puede verificar "non-root" a partir de un USER con

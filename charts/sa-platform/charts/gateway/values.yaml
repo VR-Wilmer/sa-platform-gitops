@@ -48,6 +48,12 @@ pdb:
   enabled: true
   minAvailable: 1
 
+# Practica 9: junto con hpa.minReplicas >= 2 y el PDB de arriba, permite
+# que el servicio siga respondiendo mientras se drena un nodo (ver
+# P9/docs/evidencia/).
+antiAffinity:
+  enabled: true
+
 # ServiceAccount/Role/RoleBinding: Practica 8 los mueve a Terraform
 # (P8/terraform), con el mismo nombre que "common.fullname" -- este chart
 # ya no los crea, ver charts/common/templates/_rbac.tpl (eliminado).
