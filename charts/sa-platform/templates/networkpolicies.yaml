@@ -81,6 +81,16 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: ingress-nginx
+      # Practica 9: el AnalysisTemplate de cada Rollout (entrega
+      # progresiva, ver charts/common/templates/_analysis.tpl) prueba
+      # /ready contra el Service "-canary" -- ese chequeo lo hace el
+      # controlador de Argo Rollouts, no el pod real que consume este
+      # servicio. Sin esta regla el canary SIEMPRE aborta (bug latente de
+      # P8, nunca ejercitado hasta la primera actualizacion real de un
+      # Rollout ya desplegado en P9).
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: argo-rollouts
       ports:
         - protocol: TCP
           port: 4000
@@ -108,6 +118,16 @@ spec:
                   - gateway
                   - tickets-service
                   - notificaciones-service
+      # Practica 9: el AnalysisTemplate de cada Rollout (entrega
+      # progresiva, ver charts/common/templates/_analysis.tpl) prueba
+      # /ready contra el Service "-canary" -- ese chequeo lo hace el
+      # controlador de Argo Rollouts, no el pod real que consume este
+      # servicio. Sin esta regla el canary SIEMPRE aborta (bug latente de
+      # P8, nunca ejercitado hasta la primera actualizacion real de un
+      # Rollout ya desplegado en P9).
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: argo-rollouts
       ports:
         - protocol: TCP
           port: 4100
@@ -128,6 +148,16 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: gateway
+      # Practica 9: el AnalysisTemplate de cada Rollout (entrega
+      # progresiva, ver charts/common/templates/_analysis.tpl) prueba
+      # /ready contra el Service "-canary" -- ese chequeo lo hace el
+      # controlador de Argo Rollouts, no el pod real que consume este
+      # servicio. Sin esta regla el canary SIEMPRE aborta (bug latente de
+      # P8, nunca ejercitado hasta la primera actualizacion real de un
+      # Rollout ya desplegado en P9).
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: argo-rollouts
       ports:
         - protocol: TCP
           port: 4200
@@ -154,6 +184,16 @@ spec:
                   # sincrona de agente al crear un ticket.
                   - gateway
                   - tickets-service
+      # Practica 9: el AnalysisTemplate de cada Rollout (entrega
+      # progresiva, ver charts/common/templates/_analysis.tpl) prueba
+      # /ready contra el Service "-canary" -- ese chequeo lo hace el
+      # controlador de Argo Rollouts, no el pod real que consume este
+      # servicio. Sin esta regla el canary SIEMPRE aborta (bug latente de
+      # P8, nunca ejercitado hasta la primera actualizacion real de un
+      # Rollout ya desplegado en P9).
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: argo-rollouts
       ports:
         - protocol: TCP
           port: 8000
@@ -174,6 +214,16 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: gateway
+      # Practica 9: el AnalysisTemplate de cada Rollout (entrega
+      # progresiva, ver charts/common/templates/_analysis.tpl) prueba
+      # /ready contra el Service "-canary" -- ese chequeo lo hace el
+      # controlador de Argo Rollouts, no el pod real que consume este
+      # servicio. Sin esta regla el canary SIEMPRE aborta (bug latente de
+      # P8, nunca ejercitado hasta la primera actualizacion real de un
+      # Rollout ya desplegado en P9).
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: argo-rollouts
       ports:
         - protocol: TCP
           port: 4400
