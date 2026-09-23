@@ -73,6 +73,29 @@ postgresql:
           secretKeyRef:
             name: postgres-auth
             key: postgres-password
+    # Practica 9, continuidad de datos: Velero (File System Backup /
+    # Kopia) se PROBO contra el volumen "data" real y lo rechaza --
+    # "hostPath volume which is not supported for pod volume backup,
+    # skipping" (confirmado en un backup real, ver P9/docs/evidencia/
+    # fase5-velero.md). El StorageClass por defecto de kind
+    # (local-path-provisioner) crea las PV como hostPath crudo, algo que
+    # Velero excluye a proposito (documentado en velero.io/docs, soporta
+    # "local" pero no "hostPath"). En vez de montar un driver CSI sin
+    # verificar (riesgo de otra cadena larga de depuracion sin garantia
+    # de que funcione), se usa el patron que la propia documentacion de
+    # Velero recomienda para bases de datos: un Backup Hook que hace
+    # `pg_dump` de cada base hacia /tmp (que SI es parte del volumen
+    # "empty-dir", ese si se respalda via FSB), y un Restore Hook que
+    # recarga esos dumps despues de que initdb reconstruye el esquema
+    # vacio en el volumen nuevo.
+    podAnnotations:
+      pre.hook.backup.velero.io/container: postgresql
+      pre.hook.backup.velero.io/command: >-
+        ["/bin/bash", "-c", "for db in platform_db identidad_db tickets_db asignacion_db notificaciones_db; do PGPASSWORD=$POSTGRESQL_POSTGRES_PASSWORD pg_dump -U postgres -d $db --data-only -f /tmp/velero-dump-$db.sql; done"]
+      post.restore.hook.velero.io/container: postgresql
+      post.restore.hook.velero.io/command: >-
+        ["/bin/bash", "-c", "for db in platform_db identidad_db tickets_db asignacion_db notificaciones_db; do PGPASSWORD=$POSTGRESQL_POSTGRES_PASSWORD psql -U postgres -d $db -f /tmp/velero-dump-$db.sql; done"]
+      post.restore.hook.velero.io/wait-timeout: 5m
     networkPolicy:
       # El chart de Bitnami genera por defecto una NetworkPolicy PROPIA sin
       # restriccion "from:" (abierta a cualquier pod del cluster en el
