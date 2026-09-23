@@ -28,9 +28,11 @@ tickets:
   # Practica 9: 2, no 1 -- es uno de los dos servicios con PDB +
   # anti-afinidad para la prueba de perdida de nodo (requiere al menos 2
   # replicas para que la caida de un nodo no sea la caida del servicio).
+  # maxReplicas tambien en 2 (no 3): anti-afinidad "required" + 2 nodos
+  # worker, un 3er pod se quedaria en Pending para siempre.
   hpa:
     minReplicas: 2
-    maxReplicas: 3
+    maxReplicas: 2
   resources:
     requests: { cpu: 30m, memory: 64Mi }
     limits: { cpu: 150m, memory: 128Mi }
@@ -63,10 +65,11 @@ gateway:
     tag: "ci-ae177b5889ae"
   # Practica 9: 2, no 1 -- mismo motivo que tickets.hpa arriba, y ademas
   # es el punto de entrada usado para verificar con curl que el servicio
-  # sigue respondiendo durante el drenaje.
+  # sigue respondiendo durante el drenaje. maxReplicas tambien en 2, mismo
+  # motivo que tickets.hpa.
   hpa:
     minReplicas: 2
-    maxReplicas: 3
+    maxReplicas: 2
   resources:
     requests: { cpu: 30m, memory: 48Mi }
     limits: { cpu: 100m, memory: 96Mi }

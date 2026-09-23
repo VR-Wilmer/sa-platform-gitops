@@ -20,9 +20,11 @@ tickets:
   image:
     repository: docker.io/wvasquezusac/sa-platform-tickets-service
     tag: "ci-ae177b5889ae"
+  # Practica 9: maxReplicas topado en 2 -- anti-afinidad "required" +
+  # solo 2 nodos worker, un 3er pod se quedaria en Pending para siempre.
   hpa:
     minReplicas: 2
-    maxReplicas: 5
+    maxReplicas: 2
   resources:
     requests: { cpu: 100m, memory: 128Mi }
     limits: { cpu: 400m, memory: 256Mi }
@@ -53,9 +55,10 @@ gateway:
   image:
     repository: docker.io/wvasquezusac/sa-platform-gateway
     tag: "ci-ae177b5889ae"
+  # Practica 9: maxReplicas topado en 2, mismo motivo que tickets.hpa.
   hpa:
     minReplicas: 2
-    maxReplicas: 5
+    maxReplicas: 2
   resources:
     requests: { cpu: 80m, memory: 96Mi }
     limits: { cpu: 300m, memory: 192Mi }

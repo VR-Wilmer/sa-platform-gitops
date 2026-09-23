@@ -45,7 +45,10 @@ probes:
 hpa:
   enabled: true
   minReplicas: 2
-  maxReplicas: 5
+  # Practica 9: topado en 2, igual que minReplicas -- con anti-afinidad
+  # "required" (ver charts/common/templates/_workload.tpl) y solo 2 nodos
+  # worker, un 3er pod nunca podria programarse.
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 70
 
 pdb:

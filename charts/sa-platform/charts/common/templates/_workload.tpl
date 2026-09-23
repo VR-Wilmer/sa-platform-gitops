@@ -54,22 +54,24 @@ spec:
     spec:
       serviceAccountName: {{ include "common.serviceAccountName" . }}
       {{- if and .Values.antiAffinity .Values.antiAffinity.enabled }}
-      # Practica 9 (resiliencia ante perdida de nodo): "preferred", no
-      # "required" -- con maxReplicas 5 y solo 2 nodos worker (ci/kind-config.yaml),
-      # una anti-afinidad "required" dejaria el 3er+ pod en Pending
-      # permanente apenas el HPA escale bajo carga. "preferred" con peso
-      # maximo logra el mismo resultado practico mientras hay hueco (el
-      # scheduler siempre prefiere el nodo libre cuando no hay conflicto
-      # real), sin bloquear el autoescalado.
+      # Practica 9 (resiliencia ante perdida de nodo): "required", no
+      # "preferred" -- se probo "preferred" primero (peso 100) y en la
+      # practica NO reparte de forma confiable: en una prueba real, las 2
+      # replicas de tickets-service Y las 2 de gateway terminaron las 4 en
+      # el mismo worker (el scoring general del scheduler -- recursos
+      # libres, etc -- le gano al termino de anti-afinidad blando). Con
+      # solo 2 replicas y exactamente 2 nodos worker (ci/kind-config.yaml),
+      # "required" es la unica forma de garantizar 1 pod por nodo siempre.
+      # A cambio, hpa.maxReplicas se topa en 2 (values*.yaml) para este
+      # servicio -- un 3er pod con anti-afinidad "required" y solo 2
+      # workers se quedaria en Pending para siempre.
       affinity:
         podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                topologyKey: kubernetes.io/hostname
-                labelSelector:
-                  matchLabels:
-                    {{- include "common.selectorLabels" . | nindent 20 }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  {{- include "common.selectorLabels" . | nindent 18 }}
       {{- end }}
       securityContext:
         runAsNonRoot: true
