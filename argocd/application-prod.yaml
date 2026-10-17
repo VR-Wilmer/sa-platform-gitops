@@ -1,3 +1,10 @@
+# Practica 9 (rama "p9" de este repo): esta Application es HIJA de la
+# Application raiz "sa-platform-root" (patron app-of-apps), que crea
+# P9/terraform/argocd-apps.tf y sincroniza este directorio argocd/. Ya no
+# se aplica con kubectl apply. targetRevision fijo en "p9": el cluster
+# sa-p9 se reconstruye siempre desde la misma revision, con SealedSecret
+# sellados con SU llave (main ya los re-sello para sa-p10).
+#
 # Application de ArgoCD para el ambiente "prod". Misma mecanica que
 # application-staging.yaml -- la diferencia real de la promocion a
 # produccion no esta aqui, sino en que el PR automatico contra
@@ -12,14 +19,14 @@ spec:
   project: default
   sources:
     - repoURL: https://github.com/VR-Wilmer/sa-platform-gitops.git
-      targetRevision: main
+      targetRevision: p9
       path: charts/sa-platform
       helm:
         valueFiles:
           - values.yaml
           - values-prod.yaml
     - repoURL: https://github.com/VR-Wilmer/sa-platform-gitops.git
-      targetRevision: main
+      targetRevision: p9
       path: sealed-secrets/prod
       directory:
         recurse: false
@@ -33,3 +40,10 @@ spec:
       prune: true
     syncOptions:
       - CreateNamespace=false
+  # Practica 9: el HPA es el dueno de spec.replicas del Rollout -- sin
+  # esto ArgoCD lo devolveria al valor del chart en cada reconciliacion.
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas

@@ -23,6 +23,19 @@ argocd/application-staging.yaml   Application de ArgoCD (staging)
 argocd/application-prod.yaml      Application de ArgoCD (prod)
 ```
 
+## Rama `p9` (Práctica 9)
+
+El clúster `sa-p9` sincroniza la rama **`p9`**, no `main`. `main` siguió
+evolucionando con la Práctica 10 (observabilidad, secretos re-sellados con
+la llave de `sa-p10`), y un clúster de recuperación ante desastres tiene
+que reconstruirse siempre desde la misma revisión. En esta rama:
+
+- `argocd/` es el directorio que sincroniza la Application raíz
+  `sa-platform-root` (app-of-apps, creada por `P9/terraform/argocd-apps.tf`);
+  sus dos hijas apuntan a `targetRevision: p9`.
+- Los `SealedSecret` están sellados con la llave de `sa-p9`, la misma que
+  `P9/sealed-secrets/restore-key.sh` restaura antes del primer sync.
+
 ## Regla de oro
 
 - **Nadie edita este repo a mano**, salvo:

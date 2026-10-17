@@ -28,8 +28,9 @@ tickets:
   # Practica 9: 2, no 1 -- es uno de los dos servicios con PDB +
   # anti-afinidad para la prueba de perdida de nodo (requiere al menos 2
   # replicas para que la caida de un nodo no sea la caida del servicio).
-  # maxReplicas tambien en 2 (no 3): anti-afinidad "required" + 2 nodos
-  # worker, un 3er pod se quedaria en Pending para siempre.
+  # maxReplicas tambien en 2: con 2 nodos worker, una 3ra replica no
+  # agrega tolerancia a la perdida de un nodo (el canary si cabe, ver
+  # topologySpreadConstraints en charts/common/templates/_workload.tpl).
   hpa:
     minReplicas: 2
     maxReplicas: 2

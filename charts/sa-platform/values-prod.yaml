@@ -20,8 +20,8 @@ tickets:
   image:
     repository: docker.io/wvasquezusac/sa-platform-tickets-service
     tag: "ci-ae177b5889ae"
-  # Practica 9: maxReplicas topado en 2 -- anti-afinidad "required" +
-  # solo 2 nodos worker, un 3er pod se quedaria en Pending para siempre.
+  # Practica 9: maxReplicas topado en 2 -- con 2 nodos worker, una 3ra
+  # replica no agrega tolerancia a la perdida de un nodo.
   hpa:
     minReplicas: 2
     maxReplicas: 2

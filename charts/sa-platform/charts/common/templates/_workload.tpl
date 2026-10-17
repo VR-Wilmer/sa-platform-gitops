@@ -54,24 +54,29 @@ spec:
     spec:
       serviceAccountName: {{ include "common.serviceAccountName" . }}
       {{- if and .Values.antiAffinity .Values.antiAffinity.enabled }}
-      # Practica 9 (resiliencia ante perdida de nodo): "required", no
-      # "preferred" -- se probo "preferred" primero (peso 100) y en la
-      # practica NO reparte de forma confiable: en una prueba real, las 2
-      # replicas de tickets-service Y las 2 de gateway terminaron las 4 en
-      # el mismo worker (el scoring general del scheduler -- recursos
-      # libres, etc -- le gano al termino de anti-afinidad blando). Con
-      # solo 2 replicas y exactamente 2 nodos worker (ci/kind-config.yaml),
-      # "required" es la unica forma de garantizar 1 pod por nodo siempre.
-      # A cambio, hpa.maxReplicas se topa en 2 (values*.yaml) para este
-      # servicio -- un 3er pod con anti-afinidad "required" y solo 2
-      # workers se quedaria en Pending para siempre.
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - topologyKey: kubernetes.io/hostname
-              labelSelector:
-                matchLabels:
-                  {{- include "common.selectorLabels" . | nindent 18 }}
+      # Practica 9 (resiliencia ante perdida de nodo). Primero se probo
+      # podAntiAffinity "preferred" (peso 100): NO reparte de forma
+      # confiable -- en una prueba real las 2 replicas de tickets-service y
+      # las 2 de gateway terminaron las 4 en el mismo worker. Luego
+      # "required": reparte bien, pero el canary de Argo Rollouts agrega
+      # un 3er pod (surge) que con solo 2 workers se queda en Pending para
+      # siempre y deja el Rollout atascado en Progressing/Degraded.
+      #
+      # topologySpreadConstraints con maxSkew 1 + DoNotSchedule da la misma
+      # garantia dura para 2 replicas (2 pods en un mismo nodo con el otro
+      # vacio seria skew 2, prohibido) y si admite el 3er pod del canary
+      # (2/1 = skew 1). nodeTaintsPolicy/nodeAffinityPolicy en Honor: sin
+      # esto el control-plane (con taint) y un nodo acordonado durante el
+      # drenaje cuentan como dominios vacios y bloquean todo.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          nodeTaintsPolicy: Honor
+          nodeAffinityPolicy: Honor
+          labelSelector:
+            matchLabels:
+              {{- include "common.selectorLabels" . | nindent 14 }}
       {{- end }}
       securityContext:
         runAsNonRoot: true
