@@ -21,6 +21,14 @@ identidad:
     requests: {cpu: 30m, memory: 128Mi}
     limits: {cpu: 200m, memory: 256Mi}
 tickets:
+  # Practica 10 -- FALLO INDUCIDO A (demostracion del canary por metricas):
+  # simula una version con una regresion de rendimiento al crear tickets
+  # (+1200 ms, ver P6/tickets-service/src/infrastructure/repositories/
+  # LatenciaInducidaTicketRepository.ts). /health y /ready siguen en 200:
+  # solo el analisis por metricas (latencia-p95) puede detectarla.
+  configMap:
+    data:
+      FALLO_LATENCIA_MS: "1200"
   image:
     repository: docker.io/wvasquezusac/sa-platform-tickets-service
     tag: "ci-4b3d4a6d1d25"
