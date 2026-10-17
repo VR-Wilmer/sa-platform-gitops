@@ -18,8 +18,8 @@ identidad:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: {cpu: 30m, memory: 64Mi}
-    limits: {cpu: 150m, memory: 128Mi}
+    requests: {cpu: 30m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 256Mi}
 tickets:
   image:
     repository: docker.io/wvasquezusac/sa-platform-tickets-service
@@ -33,8 +33,8 @@ tickets:
     minReplicas: 2
     maxReplicas: 2
   resources:
-    requests: {cpu: 30m, memory: 64Mi}
-    limits: {cpu: 150m, memory: 128Mi}
+    requests: {cpu: 30m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 256Mi}
 asignacion:
   image:
     repository: docker.io/wvasquezusac/sa-platform-asignacion-service
@@ -43,8 +43,8 @@ asignacion:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: {cpu: 30m, memory: 64Mi}
-    limits: {cpu: 150m, memory: 128Mi}
+    requests: {cpu: 30m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 256Mi}
 notificaciones:
   image:
     repository: docker.io/wvasquezusac/sa-platform-notificaciones-service
@@ -53,8 +53,8 @@ notificaciones:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: {cpu: 30m, memory: 64Mi}
-    limits: {cpu: 150m, memory: 128Mi}
+    requests: {cpu: 30m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 256Mi}
 gateway:
   image:
     repository: docker.io/wvasquezusac/sa-platform-gateway
@@ -67,8 +67,8 @@ gateway:
     minReplicas: 2
     maxReplicas: 2
   resources:
-    requests: {cpu: 30m, memory: 48Mi}
-    limits: {cpu: 100m, memory: 96Mi}
+    requests: {cpu: 30m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 256Mi}
   ingress:
     host: sa-p8-staging.local
 cronjobs:
