@@ -33,3 +33,11 @@ spec:
       prune: true
     syncOptions:
       - CreateNamespace=false
+  # Practica 10: el HPA es el dueno de spec.replicas del Rollout (con el
+  # generador de trafico escala de verdad) -- sin esto ArgoCD marca la
+  # Application OutOfSync y selfHeal pelea con el HPA en cada reconciliacion.
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /spec/replicas
