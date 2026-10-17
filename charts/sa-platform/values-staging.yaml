@@ -13,7 +13,7 @@
 identidad:
   image:
     repository: docker.io/wvasquezusac/sa-platform-identidad-service
-    tag: "ci-4b3d4a6d1d25"
+    tag: "ci-42cf500e6d0d"
   hpa:
     minReplicas: 1
     maxReplicas: 3
@@ -23,7 +23,7 @@ identidad:
 tickets:
   image:
     repository: docker.io/wvasquezusac/sa-platform-tickets-service
-    tag: "ci-4b3d4a6d1d25"
+    tag: "ci-42cf500e6d0d"
   # Practica 9: 2, no 1 -- es uno de los dos servicios con PDB +
   # anti-afinidad para la prueba de perdida de nodo (requiere al menos 2
   # replicas para que la caida de un nodo no sea la caida del servicio).
@@ -38,7 +38,7 @@ tickets:
 asignacion:
   image:
     repository: docker.io/wvasquezusac/sa-platform-asignacion-service
-    tag: "ci-4b3d4a6d1d25"
+    tag: "ci-42cf500e6d0d"
   hpa:
     minReplicas: 1
     maxReplicas: 3
@@ -48,7 +48,7 @@ asignacion:
 notificaciones:
   image:
     repository: docker.io/wvasquezusac/sa-platform-notificaciones-service
-    tag: "ci-4b3d4a6d1d25"
+    tag: "ci-42cf500e6d0d"
   hpa:
     minReplicas: 1
     maxReplicas: 3
@@ -58,7 +58,7 @@ notificaciones:
 gateway:
   image:
     repository: docker.io/wvasquezusac/sa-platform-gateway
-    tag: "ci-4b3d4a6d1d25"
+    tag: "ci-42cf500e6d0d"
   # Practica 9: 2, no 1 -- mismo motivo que tickets.hpa arriba, y ademas
   # es el punto de entrada usado para verificar con curl que el servicio
   # sigue respondiendo durante el drenaje. maxReplicas tambien en 2, mismo
@@ -75,8 +75,8 @@ cronjobs:
   heartbeat:
     image:
       repository: docker.io/wvasquezusac/sa-platform-cronjob-heartbeat
-      tag: "ci-4b3d4a6d1d25"
+      tag: "ci-42cf500e6d0d"
   resumen:
     image:
       repository: docker.io/wvasquezusac/sa-platform-cronjob-resumen
-      tag: "ci-4b3d4a6d1d25"
+      tag: "ci-42cf500e6d0d"
