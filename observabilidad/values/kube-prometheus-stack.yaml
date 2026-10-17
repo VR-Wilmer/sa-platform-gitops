@@ -140,6 +140,11 @@ grafana:
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { cpu: 300m, memory: 384Mi }
+  # Sin los ~30 tableros por defecto del chart (k8s-resources-*, node-*,
+  # etc.): exhiben "todas las metricas disponibles" sin una pregunta de
+  # operacion detras (rubrica 1.2). El unico tablero es el de operacion de
+  # sa-platform (observabilidad/manifests/grafana-dashboard-operacion.yaml).
+  defaultDashboardsEnabled: false
   sidecar:
     dashboards:
       enabled: true

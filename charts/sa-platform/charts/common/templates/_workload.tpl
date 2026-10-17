@@ -48,6 +48,19 @@ spec:
                 valueFrom:
                   podTemplateHashValue: Latest
         - setWeight: 100
+        # Practica 10: verificacion post-promocion. Con el 100% del trafico
+        # real en la version nueva se mide una ultima vez antes de dar el
+        # Rollout por completo: hasta que este paso termina, el ReplicaSet
+        # estable sigue existiendo y un fallo aqui todavia revierte solo.
+        # Atrapa lo que solo aparece a plena carga (saturacion, pools de
+        # conexiones) y que el 20%/50% no alcanzo a mostrar.
+        - analysis:
+            templates:
+              - templateName: {{ include "common.fullname" . }}-analysis
+            args:
+              - name: canary-hash
+                valueFrom:
+                  podTemplateHashValue: Latest
   selector:
     matchLabels:
       {{- include "common.selectorLabels" . | nindent 6 }}
