@@ -74,3 +74,11 @@ cronjobs:
     image:
       repository: docker.io/wvasquezusac/sa-platform-cronjob-resumen
       tag: "ci-ae177b5889ae"
+
+# Practica 10: sin generador de trafico en prod. Ahi el trafico lo ponen
+# los usuarios reales; el simulador solo existe en staging, donde se
+# demuestra el canary por metricas. Con el generador corriendo en ambos
+# ambientes, los picos de CPU de un canary simultaneo de 5 servicios
+# dejaban sin respuesta al motor de Docker del cluster kind (8 vCPU).
+generadorTrafico:
+  enabled: false
