@@ -24,17 +24,29 @@ spec:
     canary:
       canaryService: {{ include "common.fullname" . }}-canary
       stableService: {{ include "common.fullname" . }}-stable
+      # Practica 10: el pause va ANTES de cada analisis (en P8/P9 iba
+      # despues). El analisis ahora mide trafico real con ventanas [1m]:
+      # recien creado el pod canario no tiene historia en Prometheus, asi
+      # que se le da 1 minuto de trafico antes de juzgarlo.
       steps:
         - setWeight: 20
+        - pause: { duration: 60s }
         - analysis:
             templates:
               - templateName: {{ include "common.fullname" . }}-analysis
-        - pause: { duration: 30s }
+            args:
+              - name: canary-hash
+                valueFrom:
+                  podTemplateHashValue: Latest
         - setWeight: 50
+        - pause: { duration: 30s }
         - analysis:
             templates:
               - templateName: {{ include "common.fullname" . }}-analysis
-        - pause: { duration: 30s }
+            args:
+              - name: canary-hash
+                valueFrom:
+                  podTemplateHashValue: Latest
         - setWeight: 100
   selector:
     matchLabels:
@@ -95,6 +107,30 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
+            # Practica 10: endpoint Prometheus del SDK de OpenTelemetry
+            # (lo scrapea el PodMonitor por este nombre de puerto).
+            - name: metrics
+              containerPort: 9464
+          env:
+            # Practica 10: identidad de la telemetria. service.version es el
+            # tag de imagen y rollouts.pod_template_hash distingue canary de
+            # estable tambien dentro de cada traza en Tempo.
+            - name: OTEL_SERVICE_NAME
+              value: {{ include "common.name" . }}
+            - name: SERVICE_VERSION
+              value: {{ .Values.image.tag | quote }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.global.observabilidad.otlpEndpoint | quote }}
+            - name: K8S_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ROLLOUTS_POD_TEMPLATE_HASH
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['rollouts-pod-template-hash']
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "deployment.environment={{ .Release.Namespace }},k8s.namespace.name={{ .Release.Namespace }},k8s.pod.name=$(K8S_POD_NAME),rollouts.pod_template_hash=$(ROLLOUTS_POD_TEMPLATE_HASH)"
           envFrom:
             - configMapRef:
                 name: {{ include "common.fullname" . }}

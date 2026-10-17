@@ -13,18 +13,17 @@
 identidad:
   image:
     repository: docker.io/wvasquezusac/sa-platform-identidad-service
-    tag: "ci-ae177b5889ae"
+    tag: "ci-f78b6488b397"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 256Mi}
 tickets:
   image:
     repository: docker.io/wvasquezusac/sa-platform-tickets-service
-    tag: "ci-ae177b5889ae"
+    tag: "ci-f78b6488b397"
   # Practica 9: 2, no 1 -- es uno de los dos servicios con PDB +
   # anti-afinidad para la prueba de perdida de nodo (requiere al menos 2
   # replicas para que la caida de un nodo no sea la caida del servicio).
@@ -34,35 +33,32 @@ tickets:
     minReplicas: 2
     maxReplicas: 2
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 256Mi}
 asignacion:
   image:
     repository: docker.io/wvasquezusac/sa-platform-asignacion-service
-    tag: "ci-ae177b5889ae"
+    tag: "ci-f78b6488b397"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 256Mi}
 notificaciones:
   image:
     repository: docker.io/wvasquezusac/sa-platform-notificaciones-service
-    tag: "ci-ae177b5889ae"
+    tag: "ci-f78b6488b397"
   hpa:
     minReplicas: 1
     maxReplicas: 3
   resources:
-    requests: { cpu: 30m, memory: 64Mi }
-    limits: { cpu: 150m, memory: 128Mi }
-
+    requests: {cpu: 30m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 256Mi}
 gateway:
   image:
     repository: docker.io/wvasquezusac/sa-platform-gateway
-    tag: "ci-ae177b5889ae"
+    tag: "ci-f78b6488b397"
   # Practica 9: 2, no 1 -- mismo motivo que tickets.hpa arriba, y ademas
   # es el punto de entrada usado para verificar con curl que el servicio
   # sigue respondiendo durante el drenaje. maxReplicas tambien en 2, mismo
@@ -71,17 +67,16 @@ gateway:
     minReplicas: 2
     maxReplicas: 2
   resources:
-    requests: { cpu: 30m, memory: 48Mi }
-    limits: { cpu: 100m, memory: 96Mi }
+    requests: {cpu: 30m, memory: 128Mi}
+    limits: {cpu: 300m, memory: 256Mi}
   ingress:
     host: sa-p8-staging.local
-
 cronjobs:
   heartbeat:
     image:
       repository: docker.io/wvasquezusac/sa-platform-cronjob-heartbeat
-      tag: "ci-ae177b5889ae"
+      tag: "ci-f78b6488b397"
   resumen:
     image:
       repository: docker.io/wvasquezusac/sa-platform-cronjob-resumen
-      tag: "ci-ae177b5889ae"
+      tag: "ci-f78b6488b397"

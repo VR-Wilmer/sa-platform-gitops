@@ -1,3 +1,10 @@
+# Practica 10: ademas de los hooks de Helm, anotaciones de ArgoCD
+# (tienen prioridad sobre las de Helm cuando sincroniza ArgoCD). Como hook
+# "PostSync" (traduccion de post-install de Helm) el Job esperaba a que
+# TODO estuviera sano, pero notificaciones-service nunca queda sano sin los
+# topicos -- interbloqueo real observado al levantar el cluster sa-p10
+# desde cero. Como hook "Sync" corre junto con el resto de recursos y
+# reintenta (backoffLimit) hasta que Kafka responde.
 # Job de Helm hook (post-install/post-upgrade): crea explicitamente los
 # topicos Kafka con particiones y retencion declaradas (requisito D: "la
 # cola o topico debera ser durable"), en vez de depender de la
@@ -13,6 +20,8 @@ metadata:
     "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 ---
 apiVersion: batch/v1
 kind: Job
@@ -24,6 +33,8 @@ metadata:
     "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "1"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 6
   activeDeadlineSeconds: 300
