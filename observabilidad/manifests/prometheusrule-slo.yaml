@@ -97,14 +97,14 @@ spec:
       interval: 30s
       rules:
         # Malas = peticiones que tardaron mas de 1 s (fuera del bucket de 1 s).
-        # le=~"1(\.0)?": Prometheus 3 normaliza la etiqueta a "1.0"; con
+        # le=~"1|1.0": Prometheus 3 normaliza la etiqueta a "1.0"; con
         # le="1" la regla no devolvia nada (observado al medir la linea base).
         - record: slo:sli_error:ratio_rate5m
           labels: { slo: latencia }
           annotations: {}
           expr: |
             1 - (
-              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le=~"1(\.0)?"}[5m]))
+              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le=~"1|1.0"}[5m]))
               / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[5m]))
             )
         - record: slo:sli_error:ratio_rate30m
@@ -112,7 +112,7 @@ spec:
           annotations: {}
           expr: |
             1 - (
-              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le=~"1(\.0)?"}[30m]))
+              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le=~"1|1.0"}[30m]))
               / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[30m]))
             )
         - record: slo:sli_error:ratio_rate1h
@@ -120,7 +120,7 @@ spec:
           annotations: {}
           expr: |
             1 - (
-              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le=~"1(\.0)?"}[1h]))
+              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le=~"1|1.0"}[1h]))
               / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[1h]))
             )
         - record: slo:sli_error:ratio_rate6h
@@ -128,7 +128,7 @@ spec:
           annotations: {}
           expr: |
             1 - (
-              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le=~"1(\.0)?"}[6h]))
+              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le=~"1|1.0"}[6h]))
               / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[6h]))
             )
         - record: slo:sli_error:ratio_rate30d
@@ -136,7 +136,7 @@ spec:
           annotations: {}
           expr: |
             1 - (
-              sum by (namespace) (increase(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le=~"1(\.0)?"}[30d]))
+              sum by (namespace) (increase(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le=~"1|1.0"}[30d]))
               / sum by (namespace) (increase(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[30d]))
             )
         - record: sli:latencia:ratio_rate5m
