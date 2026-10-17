@@ -21,9 +21,12 @@ tempo:
     defaults:
       metrics_generator:
         processors: [service-graphs]
+  # 768Mi resulto insuficiente con el trafico del generador: Tempo era
+  # terminado por OOMKill (exit 137) cada pocos minutos y perdia las trazas
+  # recientes del WAL -- el recorrido sintoma->causa no encontraba la traza.
   resources:
-    requests: { cpu: 50m, memory: 256Mi }
-    limits: { cpu: 500m, memory: 768Mi }
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { cpu: "1", memory: 2Gi }
 
 persistence:
   enabled: true
