@@ -28,8 +28,13 @@ Tres metricas, las tres deben pasar:
 
 "or vector(0)" en 2 y 3: sin errores la serie de 5xx no existe (y
 histogram_quantile sin datos no devuelve nada) -- se traduce a 0 para no
-abortar por "sin resultado". La metrica 1 es la que impide que ese 0
-oculte una candidata sin trafico.
+abortar por "sin resultado". Un minuto sin NINGUNA peticion (servicios de
+poco trafico como asignacion-service, que solo recibe una llamada por
+ticket creado) daba 0/0 = NaN, que no cumple ni la condicion de exito ni
+la de fallo y dejaba el AnalysisRun "Inconclusive" (observado en el primer
+despliegue de P10): "> 0" en el denominador y ">= 0" en el p95 descartan
+el NaN. La metrica 1 es la que impide que esos 0 oculten una candidata sin
+trafico.
 
 count/interval/failureLimit: 4 mediciones cada 30s (2 min de evidencia por
 paso, ventana [1m] en cada una). failureLimit 1: una medicion mala aislada
@@ -75,7 +80,7 @@ spec:
             (
               (sum(rate(sa_http_server_duration_seconds_count{ {{- $sel -}}, status_code=~"5.."}[1m])) or vector(0))
               /
-              sum(rate(sa_http_server_duration_seconds_count{ {{- $sel -}} }[1m]))
+              (sum(rate(sa_http_server_duration_seconds_count{ {{- $sel -}} }[1m])) > 0)
             ) or vector(0)
     - name: latencia-p95
       interval: 30s
@@ -87,5 +92,5 @@ spec:
         prometheus:
           address: {{ $prom | quote }}
           query: |
-            histogram_quantile(0.95, sum by (le) (rate(sa_http_server_duration_seconds_bucket{ {{- $sel -}} }[1m]))) or vector(0)
+            (histogram_quantile(0.95, sum by (le) (rate(sa_http_server_duration_seconds_bucket{ {{- $sel -}} }[1m]))) >= 0) or vector(0)
 {{- end -}}
