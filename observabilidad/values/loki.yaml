@@ -56,3 +56,10 @@ gateway: { enabled: false }
 lokiCanary: { enabled: false }
 test: { enabled: false }
 minio: { enabled: false }
+
+# Sidecar que carga reglas de alerta de Loki desde ConfigMaps: no se usa
+# (las alertas viven en Prometheus, por SLO) y en el chart 6.x termina con
+# "Completed" en bucle, dejando el pod 1/2 permanentemente.
+sidecar:
+  rules:
+    enabled: false
