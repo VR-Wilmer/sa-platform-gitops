@@ -29,11 +29,20 @@ function gql(path, token, query, variables, op) {
   });
 }
 
-export function setup() {
-  const correo = `cliente-${Date.now()}@trafico.local`;
+// Practica 10: cada usuario virtual rota a un cliente NUEVO cada
+// ITERACIONES_POR_CLIENTE iteraciones. La primera version usaba un unico
+// cliente para siempre: acumulo ~850 tickets, la consulta "tickets" (sin
+// paginacion) llego a 700 ms y el canary de tickets-service se aborto por
+// latencia-p95 -- medicion correcta, pero de una poblacion irreal (ver
+// P10/docs/informe-operacion.md). Una mesa de ayuda real tiene muchos
+// clientes con pocos tickets cada uno.
+const ITERACIONES_POR_CLIENTE = 25;
+
+function nuevoCliente() {
+  const correo = `cliente-${__VU}-${Date.now()}@trafico.local`;
   const contrasena = "Trafico-" + Math.random().toString(36).slice(2, 12);
   http.post(`${BASE}/api/identidad/registro`,
-    JSON.stringify({ nombre: "Cliente simulado", correo, contrasena }), { headers: JSON_H });
+    JSON.stringify({ nombre: "Cliente simulado", correo, contrasena }), { headers: JSON_H, tags: { op: "registro" } });
   return { correo, contrasena };
 }
 
@@ -41,8 +50,16 @@ export function setup() {
 let tokenCliente = null;
 let tokenAgente = null;
 let ultimoLogin = 0;
+let cred = null;
+let iteraciones = 0;
 
-export default function (cred) {
+export default function () {
+  if (!cred || iteraciones >= ITERACIONES_POR_CLIENTE) {
+    cred = nuevoCliente();
+    iteraciones = 0;
+    tokenCliente = null;
+  }
+  iteraciones++;
   if (!tokenCliente || !tokenAgente || Date.now() - ultimoLogin > RELOGIN_MS) {
     tokenCliente = login(cred.correo, cred.contrasena);
     tokenAgente = login(__ENV.AGENTE1_EMAIL, __ENV.AGENTE1_PASSWORD);
