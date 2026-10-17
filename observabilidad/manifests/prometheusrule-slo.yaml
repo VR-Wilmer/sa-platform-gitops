@@ -1,0 +1,248 @@
+# Practica 10: SLO de sa-platform -- reglas de registro (indicador, tasa de
+# consumo y presupuesto consumido) y alertas por CONSUMO DEL PRESUPUESTO DE
+# ERROR (multi-ventana / multi-tasa, capitulo "Alerting on SLOs" del SRE
+# Workbook de Google), no por umbral instantaneo.
+#
+# Declaracion y justificacion de cada numero: P10/docs/slo.md.
+#
+#   SLO "disponibilidad": 99.5% de las peticiones de los usuarios a la API
+#     (/api/* en el gateway) se responden sin error del servidor (no 5xx).
+#   SLO "latencia":       99% de las peticiones de los usuarios a la API se
+#     responden en menos de 1 segundo.
+#   Ventana de ambos: 30 dias moviles.
+#
+# Se miden en el GATEWAY porque es el borde que ve el usuario: si
+# tickets-service se cae por completo, sus propias metricas desaparecen,
+# pero el gateway sigue contando cada 502/504 que recibe el cliente.
+#
+# Nota sobre "annotations: {}" en las reglas de registro: Prometheus no
+# admite anotaciones en una regla de registro, y el Prometheus Operator omite
+# el mapa vacio al generar el archivo de reglas (no llega a Prometheus). Se
+# declara para que toda regla del CR tenga el mismo esquema, lo que permite
+# recorrerlas con jq (.rules[].annotations) sin errores sobre null.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sa-platform-slo
+  namespace: observabilidad
+  labels:
+    app.kubernetes.io/part-of: sa-platform
+spec:
+  groups:
+    # -----------------------------------------------------------------------
+    # Objetivos (constantes). Un unico lugar donde vive cada numero; el resto
+    # de reglas los consulta con on(slo).
+    # -----------------------------------------------------------------------
+    - name: sa-platform-slo-objetivos
+      interval: 1m
+      rules:
+        - record: slo:objetivo:ratio
+          expr: vector(0.995)
+          labels: { slo: disponibilidad }
+          annotations: {}
+        - record: slo:objetivo:ratio
+          expr: vector(0.99)
+          labels: { slo: latencia }
+          annotations: {}
+
+    # -----------------------------------------------------------------------
+    # Proporcion de EVENTOS MALOS por ventana (1 - SLI). "or ... * 0": sin
+    # ningun 5xx la serie de errores no existe; se fuerza un 0 explicito para
+    # que el tablero muestre 0% y no "sin datos".
+    # -----------------------------------------------------------------------
+    - name: sa-platform-slo-disponibilidad
+      interval: 30s
+      rules:
+        - record: slo:sli_error:ratio_rate5m
+          labels: { slo: disponibilidad }
+          annotations: {}
+          expr: |
+            (sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*", status_code=~"5.."}[5m]))
+              or sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[5m])) * 0)
+            / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[5m]))
+        - record: slo:sli_error:ratio_rate30m
+          labels: { slo: disponibilidad }
+          annotations: {}
+          expr: |
+            (sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*", status_code=~"5.."}[30m]))
+              or sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[30m])) * 0)
+            / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[30m]))
+        - record: slo:sli_error:ratio_rate1h
+          labels: { slo: disponibilidad }
+          annotations: {}
+          expr: |
+            (sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*", status_code=~"5.."}[1h]))
+              or sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[1h])) * 0)
+            / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[1h]))
+        - record: slo:sli_error:ratio_rate6h
+          labels: { slo: disponibilidad }
+          annotations: {}
+          expr: |
+            (sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*", status_code=~"5.."}[6h]))
+              or sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[6h])) * 0)
+            / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[6h]))
+        - record: slo:sli_error:ratio_rate30d
+          labels: { slo: disponibilidad }
+          annotations: {}
+          expr: |
+            (sum by (namespace) (increase(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*", status_code=~"5.."}[30d]))
+              or sum by (namespace) (increase(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[30d])) * 0)
+            / sum by (namespace) (increase(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[30d]))
+        # El INDICADOR (SLI) propiamente dicho: proporcion de peticiones buenas.
+        - record: sli:disponibilidad:ratio_rate5m
+          annotations: {}
+          expr: 1 - slo:sli_error:ratio_rate5m{slo="disponibilidad"}
+
+    - name: sa-platform-slo-latencia
+      interval: 30s
+      rules:
+        # Malas = peticiones que tardaron mas de 1 s (fuera del bucket le="1").
+        - record: slo:sli_error:ratio_rate5m
+          labels: { slo: latencia }
+          annotations: {}
+          expr: |
+            1 - (
+              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le="1"}[5m]))
+              / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[5m]))
+            )
+        - record: slo:sli_error:ratio_rate30m
+          labels: { slo: latencia }
+          annotations: {}
+          expr: |
+            1 - (
+              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le="1"}[30m]))
+              / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[30m]))
+            )
+        - record: slo:sli_error:ratio_rate1h
+          labels: { slo: latencia }
+          annotations: {}
+          expr: |
+            1 - (
+              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le="1"}[1h]))
+              / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[1h]))
+            )
+        - record: slo:sli_error:ratio_rate6h
+          labels: { slo: latencia }
+          annotations: {}
+          expr: |
+            1 - (
+              sum by (namespace) (rate(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le="1"}[6h]))
+              / sum by (namespace) (rate(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[6h]))
+            )
+        - record: slo:sli_error:ratio_rate30d
+          labels: { slo: latencia }
+          annotations: {}
+          expr: |
+            1 - (
+              sum by (namespace) (increase(sa_http_server_duration_seconds_bucket{service="gateway", route=~"/api/.*", le="1"}[30d]))
+              / sum by (namespace) (increase(sa_http_server_duration_seconds_count{service="gateway", route=~"/api/.*"}[30d]))
+            )
+        - record: sli:latencia:ratio_rate5m
+          annotations: {}
+          expr: 1 - slo:sli_error:ratio_rate5m{slo="latencia"}
+
+    # -----------------------------------------------------------------------
+    # Tasa de consumo (burn rate) y presupuesto. burn rate = 1 significa
+    # gastar el presupuesto exactamente en 30 dias; 14.4 significa gastar el
+    # 2% del presupuesto mensual en 1 hora (se agota en ~2 dias).
+    # -----------------------------------------------------------------------
+    - name: sa-platform-slo-presupuesto
+      interval: 30s
+      rules:
+        - record: slo:burnrate:5m
+          annotations: {}
+          expr: slo:sli_error:ratio_rate5m / on (slo) group_left () (1 - slo:objetivo:ratio)
+        - record: slo:burnrate:30m
+          annotations: {}
+          expr: slo:sli_error:ratio_rate30m / on (slo) group_left () (1 - slo:objetivo:ratio)
+        - record: slo:burnrate:1h
+          annotations: {}
+          expr: slo:sli_error:ratio_rate1h / on (slo) group_left () (1 - slo:objetivo:ratio)
+        - record: slo:burnrate:6h
+          annotations: {}
+          expr: slo:sli_error:ratio_rate6h / on (slo) group_left () (1 - slo:objetivo:ratio)
+        # Presupuesto de error CONSUMIDO en la ventana de 30 dias (1 = 100%
+        # gastado; > 1 = SLO incumplido) y lo que queda.
+        - record: slo:presupuesto_error:consumido_ratio
+          annotations: {}
+          expr: slo:sli_error:ratio_rate30d / on (slo) group_left () (1 - slo:objetivo:ratio)
+        - record: slo:presupuesto_error:restante_ratio
+          annotations: {}
+          expr: 1 - slo:presupuesto_error:consumido_ratio
+
+    # -----------------------------------------------------------------------
+    # Alertas: SOLO por consumo de presupuesto. Dos por SLO, y cada una
+    # exige una accion distinta (ver runbook):
+    #   - consumo rapido (14.4x en 1h, confirmado en 5m) -> severity page:
+    #     a este ritmo el presupuesto del mes se agota en ~2 dias; alguien
+    #     debe intervenir YA.
+    #   - consumo sostenido (6x en 6h, confirmado en 30m) -> severity ticket:
+    #     se agota en ~5 dias; no justifica despertar a nadie, si
+    #     investigarlo en horario laboral.
+    # La ventana corta de cada par evita que la alerta siga disparada horas
+    # despues de resuelto el problema (la ventana larga tarda en "olvidar").
+    # Se descarto una tercera alerta de 1x en 3 dias: con la retencion y el
+    # trafico de este laboratorio seria ruido que nadie atenderia.
+    # -----------------------------------------------------------------------
+    - name: sa-platform-slo-alertas
+      rules:
+        - alert: SLODisponibilidadConsumoRapidoPresupuesto
+          expr: |
+            slo:burnrate:1h{slo="disponibilidad"} > 14.4
+            and
+            slo:burnrate:5m{slo="disponibilidad"} > 14.4
+          for: 2m
+          labels:
+            severity: page
+            slo: disponibilidad
+          annotations:
+            summary: "Los usuarios estan recibiendo errores: el presupuesto de error de disponibilidad se consume {{ $value | printf \"%.1f\" }}x mas rapido de lo sostenible ({{ $labels.namespace }})"
+            description: "Mas del 7.2% de las peticiones a la API fallan con 5xx en la ultima hora y en los ultimos 5 minutos. A este ritmo el presupuesto mensual (0.5%) se agota en menos de 2 dias."
+            impacto: "Clientes que no pueden iniciar sesion, crear ni consultar tickets."
+            runbook_url: "https://github.com/VR-Wilmer/Pr-cticas-SA-B-201800678/blob/master/P10/docs/runbooks/slo-disponibilidad-consumo-rapido.md"
+            dashboard_url: "http://grafana.localtest.me/d/sa-platform-operacion"
+        - alert: SLODisponibilidadConsumoSostenidoPresupuesto
+          expr: |
+            slo:burnrate:6h{slo="disponibilidad"} > 6
+            and
+            slo:burnrate:30m{slo="disponibilidad"} > 6
+          for: 15m
+          labels:
+            severity: ticket
+            slo: disponibilidad
+          annotations:
+            summary: "Errores sostenidos: el presupuesto de disponibilidad se consume {{ $value | printf \"%.1f\" }}x mas rapido de lo sostenible ({{ $labels.namespace }})"
+            description: "Mas del 3% de las peticiones fallan con 5xx desde hace horas. Sin intervencion el presupuesto mensual se agota en ~5 dias."
+            impacto: "Una fraccion de los clientes recibe errores intermitentes."
+            runbook_url: "https://github.com/VR-Wilmer/Pr-cticas-SA-B-201800678/blob/master/P10/docs/runbooks/slo-disponibilidad-consumo-sostenido.md"
+            dashboard_url: "http://grafana.localtest.me/d/sa-platform-operacion"
+        - alert: SLOLatenciaConsumoRapidoPresupuesto
+          expr: |
+            slo:burnrate:1h{slo="latencia"} > 14.4
+            and
+            slo:burnrate:5m{slo="latencia"} > 14.4
+          for: 2m
+          labels:
+            severity: page
+            slo: latencia
+          annotations:
+            summary: "La API esta lenta para los usuarios: el presupuesto de latencia se consume {{ $value | printf \"%.1f\" }}x mas rapido de lo sostenible ({{ $labels.namespace }})"
+            description: "Mas del 14.4% de las peticiones tardan mas de 1 s en la ultima hora y en los ultimos 5 minutos."
+            impacto: "Clientes esperando mas de 1 s por respuesta: perciben el sistema como caido y reintentan."
+            runbook_url: "https://github.com/VR-Wilmer/Pr-cticas-SA-B-201800678/blob/master/P10/docs/runbooks/slo-latencia-consumo-rapido.md"
+            dashboard_url: "http://grafana.localtest.me/d/sa-platform-operacion"
+        - alert: SLOLatenciaConsumoSostenidoPresupuesto
+          expr: |
+            slo:burnrate:6h{slo="latencia"} > 6
+            and
+            slo:burnrate:30m{slo="latencia"} > 6
+          for: 15m
+          labels:
+            severity: ticket
+            slo: latencia
+          annotations:
+            summary: "Lentitud sostenida: el presupuesto de latencia se consume {{ $value | printf \"%.1f\" }}x mas rapido de lo sostenible ({{ $labels.namespace }})"
+            description: "Mas del 6% de las peticiones tardan mas de 1 s desde hace horas."
+            impacto: "Experiencia degradada para una parte de los clientes."
+            runbook_url: "https://github.com/VR-Wilmer/Pr-cticas-SA-B-201800678/blob/master/P10/docs/runbooks/slo-latencia-consumo-sostenido.md"
+            dashboard_url: "http://grafana.localtest.me/d/sa-platform-operacion"

@@ -1,0 +1,100 @@
+{{- /*
+Practica 10: generador de trafico de usuarios (k6). Recorre el flujo real
+de un cliente a traves del gateway, igual que lo haria el frontend:
+
+  cliente: login -> crear ticket -> listar sus tickets
+  agente:  resolver algunos tickets -> consultar el historial de
+           notificaciones de un ticket
+  ~5% de las iteraciones: login con contrasena equivocada
+
+Por que existe: el AnalysisTemplate (charts/common/templates/_analysis.tpl)
+ya no ejecuta pruebas sinteticas contra el canary -- mide el trafico que la
+version candidata RECIBE. En produccion ese trafico lo ponen los usuarios;
+en este cluster de laboratorio no hay usuarios, asi que este Deployment los
+simula, siempre por la puerta de entrada (el gateway), nunca apuntando al
+canary: Argo Rollouts reparte este trafico entre estable y candidata como
+repartiria el de cualquier usuario.
+
+Credenciales: el cliente se registra solo al arrancar (correo unico); el
+agente reutiliza AGENTE1_EMAIL (ConfigMap) y AGENTE1_PASSWORD (Secret
+sellado "identidad-service"), sin ningun secreto nuevo en texto plano.
+*/ -}}
+{{- if .Values.generadorTrafico.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: generador-trafico
+  labels:
+    {{- include "sa-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/name: generador-trafico
+data:
+  trafico.js: |
+{{ .Files.Get "files/trafico.js" | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: generador-trafico
+  labels:
+    {{- include "sa-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/name: generador-trafico
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: generador-trafico
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: generador-trafico
+      annotations:
+        checksum/script: {{ .Files.Get "files/trafico.js" | sha256sum | trunc 16 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 12345
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: k6
+          image: {{ .Values.generadorTrafico.image | quote }}
+          args: ["run", "--quiet", "--no-summary", "--no-usage-report", "/scripts/trafico.js"]
+          env:
+            - name: BASE_URL
+              value: "http://gateway:4000"
+            - name: USUARIOS
+              value: {{ .Values.generadorTrafico.usuarios | quote }}
+            - name: PAUSA_SEGUNDOS
+              value: {{ .Values.generadorTrafico.pausaSegundos | quote }}
+            - name: AGENTE1_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: identidad-service
+                  key: AGENTE1_EMAIL
+            - name: AGENTE1_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: identidad-service
+                  key: AGENTE1_PASSWORD
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 300m, memory: 192Mi }
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: scripts
+          configMap:
+            name: generador-trafico
+        - name: tmp
+          emptyDir: {}
+{{- end }}

@@ -1,0 +1,40 @@
+# Practica 10 -- Prometheus + Alertmanager + Grafana + Prometheus Operator. ServerSideApply: los CRDs del operador superan
+# el limite de 256KB de la anotacion last-applied-configuration del apply clasico.
+# Child Application del app-of-apps argocd/application-observabilidad.yaml.
+# Multi-source: el chart viene del repositorio oficial (version fijada) y
+# los values de ESTE repo (ref "values"), asi un cambio de configuracion es
+# un commit revisable, nunca un `helm upgrade` a mano.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: obs-kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 91.8.2
+      helm:
+        releaseName: kps
+        valueFiles:
+          - $values/observabilidad/values/kube-prometheus-stack.yaml
+    - repoURL: https://github.com/VR-Wilmer/sa-platform-gitops.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observabilidad
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m

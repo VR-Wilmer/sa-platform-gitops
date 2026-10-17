@@ -13,6 +13,42 @@
 # charts/sa-platform/templates/{limitrange,resourcequota}.yaml (eliminados).
 
 # ---------------------------------------------------------------------------
+# Practica 10 (observabilidad). "global" porque lo leen los 5 subcharts de
+# servicio (charts/common/templates/_workload.tpl y _analysis.tpl).
+# ---------------------------------------------------------------------------
+global:
+  observabilidad:
+    # OpenTelemetry Collector (namespace observabilidad, desplegado por
+    # ArgoCD desde observabilidad/apps/otel-collector.yaml). OTLP/HTTP.
+    otlpEndpoint: "http://otel-collector.observabilidad.svc.cluster.local:4318"
+    # Prometheus que consulta el AnalysisTemplate (Service headless que crea
+    # el Prometheus Operator de kube-prometheus-stack).
+    prometheusAddress: "http://prometheus-operated.observabilidad.svc.cluster.local:9090"
+  # Umbrales de promocion del canary, medidos SOLO sobre la version
+  # candidata. Justificacion en P10/docs/slo.md (seccion "Umbrales del
+  # canary"): el canary es mas estricto que el SLO -- una version nueva que
+  # ya en su 20% de trafico gasta presupuesto a este ritmo no debe llegar
+  # al 100%.
+  canary:
+    maxErrorRate: 0.05     # 5% de respuestas 5xx
+    maxP95Seconds: 0.5     # p95 de 500 ms
+
+# ---------------------------------------------------------------------------
+# Practica 10: generador de trafico de usuarios (templates/generador-trafico.yaml).
+# Simula clientes reales recorriendo el flujo completo a traves del gateway
+# (login -> crear ticket -> listar tickets -> consultar notificaciones, y
+# de vez en cuando un login con contrasena equivocada). Sin trafico el
+# analisis del canary por metricas no tiene nada que medir y los SLO no
+# tienen indicador -- en un sistema real ese trafico lo ponen los usuarios.
+# ---------------------------------------------------------------------------
+generadorTrafico:
+  enabled: true
+  image: grafana/k6:1.3.0
+  # Usuarios virtuales concurrentes y pausa entre iteraciones de cada uno.
+  usuarios: 3
+  pausaSegundos: 1
+
+# ---------------------------------------------------------------------------
 # Dependencia externa: PostgreSQL compartido (requisito C), StatefulSet+PVC.
 # Bitnami retiro sus tags versionadas del Docker Hub gratuito en 2025 y las
 # reubico en el registro "bitnamilegacy" (verificado con `docker pull` antes

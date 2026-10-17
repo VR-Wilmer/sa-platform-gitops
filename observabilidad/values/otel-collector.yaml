@@ -1,0 +1,71 @@
+# OpenTelemetry Collector (Practica 10): punto unico de entrada de las
+# trazas. Los servicios solo conocen al Collector (OTEL_EXPORTER_OTLP_ENDPOINT),
+# nunca al backend: cambiar Tempo por Jaeger (o agregar muestreo) es un
+# cambio aqui, no un redeploy de los 5 servicios.
+mode: deployment
+replicaCount: 1
+fullnameOverride: otel-collector
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+# Enriquece cada span con metadatos de Kubernetes (pod, namespace,
+# deployment) consultando la API -- el chart crea el RBAC necesario.
+presets:
+  kubernetesAttributes:
+    enabled: true
+
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { cpu: 500m, memory: 512Mi }
+
+ports:
+  jaeger-compact: { enabled: false }
+  jaeger-thrift: { enabled: false }
+  jaeger-grpc: { enabled: false }
+  zipkin: { enabled: false }
+
+# Metricas propias del Collector (spans aceptados/rechazados/exportados):
+# "observar al observador" -- si Tempo deja de recibir trazas, aqui se ve
+# si el problema esta antes o despues del Collector.
+serviceMonitor:
+  enabled: true
+
+config:
+  # Solo OTLP: los receptores por defecto del chart (jaeger, zipkin,
+  # prometheus) no tienen productores en este sistema.
+  receivers:
+    jaeger: null
+    zipkin: null
+    prometheus: null
+  processors:
+    memory_limiter:
+      check_interval: 1s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    batch: {}
+  exporters:
+    otlp/tempo:
+      endpoint: tempo.observabilidad.svc.cluster.local:4317
+      tls:
+        insecure: true
+  service:
+    telemetry:
+      metrics:
+        readers:
+          - pull:
+              exporter:
+                prometheus:
+                  host: "0.0.0.0"
+                  port: 8888
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, k8sattributes, batch]
+        exporters: [otlp/tempo]
+      # Metricas y registros NO pasan por el Collector: las metricas se
+      # scrapean del endpoint Prometheus de cada pod (para conservar la
+      # etiqueta rollouts-pod-template-hash que necesita el canary) y los
+      # registros los recoge Alloy desde stdout.
+      metrics: null
+      logs: null

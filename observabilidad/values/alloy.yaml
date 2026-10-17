@@ -1,0 +1,76 @@
+# Grafana Alloy (Practica 10): recolector de registros -> Loki. Reemplaza a
+# Promtail (fin de soporte en 2026). Lee los logs de los pods via la API de
+# Kubernetes (loki.source.kubernetes): no necesita montar /var/log del nodo,
+# asi que corre como un Deployment de 1 replica, sin hostPath ni privilegios.
+controller:
+  type: deployment
+  replicas: 1
+
+alloy:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 300m, memory: 384Mi }
+  configMap:
+    create: true
+    content: |
+      // Pods de la aplicacion (ambos ambientes) y del controlador de Argo
+      // Rollouts (para ver por que aborto un canary sin salir de Grafana).
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          regex         = "sa-p8-staging|sa-p8-prod|argo-rollouts"
+          action        = "keep"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          target_label  = "app"
+        }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.process.json.receiver]
+      }
+
+      // Los servicios escriben una linea JSON por registro
+      // (P6/*/src/observability/logger.ts). Se extraen dos campos:
+      //  - level: etiqueta (baja cardinalidad) para filtrar errores rapido.
+      //  - trace_id: structured metadata (NO etiqueta: un valor distinto por
+      //    peticion reventaria el indice). Permite {app="x"} | trace_id="..."
+      // El resto de campos se consultan con "| json" en LogQL.
+      loki.process "json" {
+        stage.json {
+          expressions = { level = "level", trace_id = "trace_id" }
+        }
+        stage.labels {
+          values = { level = "" }
+        }
+        stage.structured_metadata {
+          values = { trace_id = "" }
+        }
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.observabilidad.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }

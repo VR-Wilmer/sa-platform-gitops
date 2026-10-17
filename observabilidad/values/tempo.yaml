@@ -1,0 +1,30 @@
+# Tempo (Practica 10): backend de trazas, modo single binary. Recibe OTLP
+# del OpenTelemetry Collector (nunca directo de los servicios).
+fullnameOverride: tempo
+
+tempo:
+  retention: 72h
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+  # metrics-generator: deriva el "service graph" (quien llama a quien, con
+  # tasa y errores) a partir de las trazas y lo escribe en Prometheus. Es lo
+  # que dibuja el mapa de servicios en Grafana.
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: "http://prometheus-operated.observabilidad.svc.cluster.local:9090/api/v1/write"
+  overrides:
+    defaults:
+      metrics_generator:
+        processors: [service-graphs]
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 768Mi }
+
+persistence:
+  enabled: true
+  size: 5Gi

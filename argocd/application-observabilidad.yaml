@@ -1,0 +1,26 @@
+# Application raiz del stack de observabilidad (Practica 10), patron
+# "app-of-apps": sincroniza observabilidad/apps/, donde cada archivo es una
+# Application hija (kube-prometheus-stack, Loki, Tempo, Alloy, OTel
+# Collector y la configuracion propia: SLO, alertas, tablero, PodMonitor).
+# Se aplica UNA sola vez como bootstrap (kubectl apply -f, igual que las
+# Application de staging/prod de la Practica 8, ver P10/MANUAL_TECNICO.md);
+# a partir de ahi todo cambio del stack es un commit en este repo y ArgoCD
+# lo aplica -- nada del stack se instala a mano.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observabilidad
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/VR-Wilmer/sa-platform-gitops.git
+    targetRevision: main
+    path: observabilidad/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true

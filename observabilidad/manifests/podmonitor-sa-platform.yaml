@@ -1,0 +1,33 @@
+# Practica 10: Prometheus scrapea el endpoint del SDK de OpenTelemetry
+# (puerto "metrics", 9464) de los 5 servicios en ambos ambientes.
+#
+# Por que PodMonitor y no ServiceMonitor: durante un canary los Service
+# "-stable" y "-canary" seleccionan distintos pods, pero lo que el
+# AnalysisTemplate necesita es saber de QUE version viene cada serie. Al
+# scrapear pods directamente, la etiqueta rollouts-pod-template-hash del pod
+# se copia a la serie (relabeling de abajo) y la consulta del canary puede
+# filtrar rollouts_pod_template_hash="<hash de la candidata>".
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: sa-platform
+  namespace: observabilidad
+spec:
+  namespaceSelector:
+    matchNames: [sa-p8-staging, sa-p8-prod]
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: sa-platform
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 15s
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+          targetLabel: service
+        - sourceLabels: [__meta_kubernetes_pod_label_rollouts_pod_template_hash]
+          targetLabel: rollouts_pod_template_hash
+      metricRelabelings:
+        # Etiquetas de "scope" que agrega el SDK de OpenTelemetry a cada
+        # serie: no aportan nada a las consultas y duplican cardinalidad.
+        - action: labeldrop
+          regex: otel_scope_.*

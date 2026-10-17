@@ -1,0 +1,194 @@
+# kube-prometheus-stack (Practica 10): Prometheus + Alertmanager + Grafana +
+# Prometheus Operator + kube-state-metrics. Lo sincroniza ArgoCD
+# (observabilidad/apps/kube-prometheus-stack.yaml); nunca `helm install`.
+
+# Nombres cortos y estables (el Service "prometheus-operated" lo crea el
+# operador con nombre fijo: es el que consultan el AnalysisTemplate y el
+# script de verificacion).
+fullnameOverride: kps
+
+# Reglas por defecto DESACTIVADAS a proposito (requisito "alertas que no
+# ameriten intervencion deberan eliminarse"): el chart trae ~150 alertas de
+# infraestructura (KubeCPUOvercommit, NodeFilesystemAlmostFull, Watchdog,
+# etc.) pensadas para un cluster de produccion multi-equipo -- en este
+# cluster kind de 4 nodos la mayoria serian ruido permanente (p. ej.
+# KubeSchedulerDown: el scheduler de kind no expone metricas) que nadie
+# atenderia. Las unicas alertas son las de consumo de presupuesto de error
+# de los SLO (observabilidad/manifests/prometheusrule-slo.yaml), cada una
+# con runbook.
+defaultRules:
+  create: false
+
+# Componentes del control plane que kind no expone hacia afuera del nodo:
+# scrapearlos solo produciria targets "down" permanentes.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+# node-exporter monta /proc y /sys del host; en kind (nodos = contenedores
+# de Docker) duplica lo que ya da cAdvisor via kubelet. La saturacion se
+# mide con las metricas de contenedor de cAdvisor (CPU/memoria vs limite).
+nodeExporter:
+  enabled: false
+prometheus-node-exporter:
+  enabled: false
+
+prometheusOperator:
+  resources:
+    requests: { cpu: 50m, memory: 96Mi }
+    limits: { cpu: 300m, memory: 256Mi }
+
+kube-state-metrics:
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 192Mi }
+
+prometheus:
+  ingress:
+    enabled: true
+    hosts: [prometheus.localtest.me]
+    paths: ["/"]
+  prometheusSpec:
+    # Selectores abiertos: Prometheus toma TODOS los PodMonitor /
+    # ServiceMonitor / PrometheusRule del cluster, no solo los que traen la
+    # etiqueta del release de Helm (los nuestros viven en
+    # observabilidad/manifests y los aplica otra Application).
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    # La ventana de los SLO es de 30 dias (P10/docs/slo.md): la retencion
+    # debe cubrirla para que "presupuesto consumido" use datos reales.
+    retention: 30d
+    retentionSize: 8GB
+    # Tempo (metrics-generator) escribe aqui las metricas de service graph.
+    enableRemoteWriteReceiver: true
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits: { cpu: "1", memory: 1536Mi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+alertmanager:
+  ingress:
+    enabled: true
+    hosts: [alertmanager.localtest.me]
+    paths: ["/"]
+  alertmanagerSpec:
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { cpu: 100m, memory: 128Mi }
+  # Enrutamiento por severidad (ver P10/docs/runbooks/): "page" exige
+  # atencion inmediata de quien esta de guardia; "ticket" se atiende en
+  # horario laboral. En este laboratorio no hay un pager real conectado
+  # (PagerDuty/Opsgenie/Slack): los receptores quedan declarados para que la
+  # ruta sea explicita y las alertas se ven en Alertmanager y en Grafana.
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: equipo-tickets
+      group_by: [alertname, slo, namespace]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - receiver: guardia-pager
+          matchers: ['severity = "page"']
+          repeat_interval: 1h
+        - receiver: equipo-tickets
+          matchers: ['severity = "ticket"']
+    receivers:
+      - name: guardia-pager
+      - name: equipo-tickets
+    inhibit_rules:
+      # Si ya hay un page por un SLO, el ticket del mismo SLO es redundante.
+      - source_matchers: ['severity = "page"']
+        target_matchers: ['severity = "ticket"']
+        equal: [slo, namespace]
+
+grafana:
+  # Credenciales de admin desde un Secret sellado (Sealed Secrets,
+  # observabilidad/manifests/grafana-admin-sealedsecret.yaml): ningun
+  # secreto en texto plano en este repo (regla de oro de la Practica 8).
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  # Lectura sin login para la demostracion (rol Viewer: no puede editar).
+  grafana.ini:
+    auth.anonymous:
+      enabled: true
+      org_role: Viewer
+    users:
+      default_theme: light
+  ingress:
+    enabled: true
+    hosts: [grafana.localtest.me]
+    path: /
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 300m, memory: 384Mi }
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: observabilidad
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+      uid: prometheus
+  # Correlacion entre los tres pilares (rubrica 2.1 / 2.4):
+  #  - Loki -> Tempo: "derived field" sobre trace_id. Desde cualquier
+  #    registro JSON se abre su traza con un clic.
+  #  - Tempo -> Loki: tracesToLogsV2. Desde un span se consultan los
+  #    registros de ESA traza (filtro por trace_id).
+  #  - Tempo -> Prometheus: tracesToMetrics + service map.
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki.observabilidad.svc.cluster.local:3100
+      jsonData:
+        maxLines: 1000
+        derivedFields:
+          - name: TraceID
+            datasourceUid: tempo
+            matcherType: regex
+            matcherRegex: '"trace_id":\s*"(\w+)"'
+            url: "$${__value.raw}"
+            urlDisplayLabel: Ver traza en Tempo
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      access: proxy
+      url: http://tempo.observabilidad.svc.cluster.local:3200
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: loki
+          spanStartTimeShift: "-5m"
+          spanEndTimeShift: "5m"
+          filterByTraceID: false
+          filterBySpanID: false
+          customQuery: true
+          query: '{namespace=~".+"} | json | trace_id="$${__trace.traceId}"'
+        tracesToMetrics:
+          datasourceUid: prometheus
+        serviceMap:
+          datasourceUid: prometheus
+        nodeGraph:
+          enabled: true
+        lokiSearch:
+          datasourceUid: loki
