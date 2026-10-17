@@ -1,0 +1,38 @@
+# Practica 10 -- metrics-server: API metrics.k8s.io para los HPA y la saturacion.
+# Child Application del app-of-apps argocd/application-observabilidad.yaml.
+# Multi-source: el chart viene del repositorio oficial (version fijada) y
+# los values de ESTE repo (ref "values"), asi un cambio de configuracion es
+# un commit revisable, nunca un `helm upgrade` a mano.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: obs-metrics-server
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://kubernetes-sigs.github.io/metrics-server/
+      chart: metrics-server
+      targetRevision: 3.14.0
+      helm:
+        releaseName: metrics-server
+        valueFiles:
+          - $values/observabilidad/values/metrics-server.yaml
+    - repoURL: https://github.com/VR-Wilmer/sa-platform-gitops.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m

@@ -1,0 +1,14 @@
+# metrics-server (Practica 10): API de metricas de recursos
+# (metrics.k8s.io) que consumen los HPA de los 5 Rollouts y `kubectl top`.
+# Sin el, cada HPA queda en "unable to fetch metrics from resource metrics
+# API", ArgoCD marca el HPA como fallido y el sync de la aplicacion nunca
+# termina (con lo que tampoco corre el hook que crea los topicos de Kafka).
+#
+# --kubelet-insecure-tls: los kubelets de kind usan certificados
+# autofirmados que no incluyen la IP del nodo como SAN. Aceptable solo en
+# un cluster local de laboratorio.
+args:
+  - --kubelet-insecure-tls
+resources:
+  requests: { cpu: 20m, memory: 48Mi }
+  limits: { cpu: 200m, memory: 128Mi }
