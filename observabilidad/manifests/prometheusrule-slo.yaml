@@ -183,6 +183,14 @@ spec:
     #     investigarlo en horario laboral.
     # La ventana corta de cada par evita que la alerta siga disparada horas
     # despues de resuelto el problema (la ventana larga tarda en "olvidar").
+    #
+    # Mejora tras el fallo inducido B (P10/docs/informe-operacion.md): la
+    # alerta sostenida (6h/30m) DISPARO 12 min despues de que el servicio ya
+    # estaba recuperado -- un incidente corto e intenso deja la ventana de
+    # 30m por encima de 6x mucho tiempo, y la inhibicion por la alerta de
+    # pagina ya no aplicaba porque esa se habia resuelto. Se agrega la
+    # condicion "burnrate:5m > 6": el ticket solo se abre si el consumo
+    # sostenido SIGUE ocurriendo ahora.
     # Se descarto una tercera alerta de 1x en 3 dias: con la retencion y el
     # trafico de este laboratorio seria ruido que nadie atenderia.
     # -----------------------------------------------------------------------
@@ -208,6 +216,8 @@ spec:
             slo:burnrate:6h{slo="disponibilidad"} > 6
             and
             slo:burnrate:30m{slo="disponibilidad"} > 6
+            and
+            slo:burnrate:5m{slo="disponibilidad"} > 6
           for: 15m
           labels:
             severity: ticket
@@ -238,6 +248,8 @@ spec:
             slo:burnrate:6h{slo="latencia"} > 6
             and
             slo:burnrate:30m{slo="latencia"} > 6
+            and
+            slo:burnrate:5m{slo="latencia"} > 6
           for: 15m
           labels:
             severity: ticket
